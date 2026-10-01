@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { @apply bg-paper text-ink font-sans antialiased; font-size: 15px; line-height: 1.55; }
+  :focus-visible { outline: 2px solid #0F5C6B; outline-offset: 2px; border-radius: 4px; }
+}
+
+@layer components {
+  .field { @apply w-full rounded-md border border-line bg-white px-3 py-2 text-[15px] text-ink placeholder:text-muted/70 focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/20; }
+  .label { @apply mb-1 block text-sm font-medium text-ink; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-primary { @apply btn bg-teal text-white hover:bg-teal-dark; }
+  .btn-ghost { @apply btn border border-line bg-white text-ink hover:border-ink/40; }
+  .panel { @apply rounded-lg border border-line bg-white; }
+  .h2 { @apply font-display text-xl font-bold tracking-tight; }
+}
+
+@keyframes indeterminate { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+.bar-indeterminate { animation: indeterminate 1.3s ease-in-out infinite; }
+@keyframes caret { 50% { opacity: 0; } }
+.caret { animation: caret 1s steps(1) infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .bar-indeterminate, .caret { animation: none; }
+}
