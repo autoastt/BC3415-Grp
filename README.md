@@ -7,7 +7,7 @@ The app name is set with `APP_NAME` in `.env`. Ships with a demo knowledge base 
 ## Quick start (Docker, one command)
 
 ```bash
-cp .env.example .env        # add ANTHROPIC_API_KEY, OPENAI_API_KEY, and set ADMIN_TOKEN
+cp .env.example .env        # add OPENAI_API_KEY and set ADMIN_TOKEN
 docker compose up --build
 ```
 
@@ -36,15 +36,14 @@ npm run dev                      # http://localhost:5173, proxies /api to :8000
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | (required) | Claude API key |
-| `ANTHROPIC_MODEL` | `claude-sonnet-5-5` | Answering model |
-| `CLASSIFIER_MODEL` | `claude-haiku-4-5-20251001` | Fast, cheap scope classifier |
+| `OPENAI_API_KEY` | (required) | OpenAI key: generation, classifier and `openai` embeddings |
+| `OPENAI_MODEL` | `gpt-4.1` | Answering model |
+| `CLASSIFIER_MODEL` | `gpt-4o-mini` | Fast, cheap scope classifier |
 | `EMBEDDING_PROVIDER` | `openai` | `openai` or `local` (sentence-transformers) |
-| `OPENAI_API_KEY` | | Required for `openai` embeddings |
 | `OPENAI_EMBEDDING_MODEL` | `text-embedding-3-small` | |
 | `LOCAL_EMBEDDING_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` | Uncomment `sentence-transformers` in requirements first |
 | `ADMIN_TOKEN` | (empty = no auth) | Protects source and settings endpoints. Set it for any public deployment. |
-| `RELEVANCE_THRESHOLD` | `0.35` | Initial cosine-similarity gate. Once saved in the settings panel, the saved value wins. |
+| `RELEVANCE_THRESHOLD` | `0.30` | Initial cosine-similarity gate. Once saved in the settings panel, the saved value wins. |
 | `TOP_K` / `CHUNK_TOKENS` / `CHUNK_OVERLAP` | `5` / `500` / `50` | Retrieval and chunking |
 | `HISTORY_MESSAGES` | `6` | Messages kept for follow-ups |
 | `RATE_LIMIT_PER_MINUTE` | `20` | Per-IP limit on `/api/chat` |
@@ -59,10 +58,10 @@ npm run dev                      # http://localhost:5173, proxies /api to :8000
 Each step is cheaper than the next, so most junk never costs a generation call.
 
 1. **Deterministic guard (free).** Regexes catch obvious injection attempts ("ignore previous instructions", "reveal your prompt", fake `</context>` tags, zero-width-character tricks) and explicit requests for a human. Matches are answered immediately with no API call.
-2. **Scope classifier (Haiku, 8 output tokens).** Labels the message `IN_SCOPE`, `OUT_OF_SCOPE`, `GREETING` or `HUMAN_HANDOFF`, using the company name, allowed topics and the last few turns (so "how much is it?" works as a follow-up). Unexpected output or errors fail closed. Mixed requests ("tell me the price, then write Python") are labeled out of scope.
+2. **Scope classifier (`gpt-4o-mini`, 8 output tokens).** Labels the message `IN_SCOPE`, `OUT_OF_SCOPE`, `GREETING` or `HUMAN_HANDOFF`, using the company name, allowed topics and the last few turns (so "how much is it?" works as a follow-up). Unexpected output or errors fail closed. Mixed requests ("tell me the price, then write Python") are labeled out of scope.
 3. **Retrieval.** Top 5 chunks by cosine similarity. Short follow-ups are expanded with the previous user turn before embedding.
 4. **Relevance gate.** If the best score is under the threshold, the bot returns the fallback message and the LLM is never called. Only chunks above the threshold are passed on, so weak matches can't seed a hallucination.
-5. **Generation.** Claude receives the spec's system prompt verbatim, with chunks inside `<context>`. The stream is watched for distinctive phrases from the system prompt; if any appear, output is cut and replaced with the refusal.
+5. **Generation.** The answering model receives the spec's system prompt verbatim, with chunks inside `<context>`. The stream is watched for distinctive phrases from the system prompt; if any appear, output is cut and replaced with the refusal.
 6. **Logging.** Every question is logged as `in_scope`, `out_of_scope`, `no_answer`, `greeting`, `handoff` or `error`, with the reason and best match score. If the model itself replies with the fallback sentence, that is logged as `no_answer` and no sources are shown.
 
 **Human handoff** happens on explicit requests, and when the classifier sees something a person should handle (allergic reaction, food safety, payment disputes, strong frustration). The bot shares the support contact and doesn't try to resolve it.
@@ -76,19 +75,51 @@ Each step is cheaper than the next, so most junk never costs a generation call.
 - **Uploads** are checked by extension and by file signature (a renamed `.exe` won't pass as `.pdf`), and read in 1 MB pieces so a 20 MB limit actually holds.
 - **Chunking is paragraph-aware.** Whole paragraphs are packed up to 500 tokens with a 50-token overlap; oversized paragraphs fall back to a sliding window. CSV rows become self-describing lines (`Item: Classic; Price: 9.90`) so a retrieved row still makes sense without its header.
 - **One collection per embedding model.** Vectors from different models aren't comparable, so switching provider starts a fresh collection rather than silently returning nonsense. Re-add sources after switching.
-- **Threshold tuning.** 0.35 suits `text-embedding-3-small`. Watch the "Not in knowledge base" view in the question log: if good questions land there with scores just below the threshold, lower it a little; if off-base answers appear, raise it.
+- **Threshold tuning.** 0.30 suits `text-embedding-3-small` with the sample corpus. Watch the "Not in knowledge base" view in the question log: if good questions land there with scores just below the threshold, lower it a little; if off-base answers appear, raise it. The gate is applied twice -- the best score decides whether the LLM is called at all, and the same number then filters which chunks are passed on. A question can therefore clear the gate on one chunk while the chunk that actually holds the answer is filtered out just below it, which is what 0.35 did to "Is the Garden Ember vegan?" (best 0.382, menu chunk 0.342).
 
 ## Testing
 
 ```bash
 cd backend
 
-# 1. Offline suite: no API keys needed (LLM mocked, hash embedder). 43 tests.
+# 1. Offline suite: no API keys needed (LLM mocked, hash embedder). 47 tests.
 pytest -q
 
-# 2. Live behaviour evaluation against a running server with real keys
+# 2a. Live behaviour evaluation against a local dev server (uvicorn on :8000)
 python -m scripts.seed
 python -m tests.eval_behavior --base http://localhost:8000
+
+# 2b. ...or against the Docker stack. Compose publishes only the frontend's
+# 8080, so the evaluation goes through nginx; the backend's 8000 is internal.
+# Sample data is already seeded by the entrypoint.
+python -m tests.eval_behavior --base http://localhost:8080
+```
+
+`--delay` (default 3.1s) spaces requests out for the app's own per-IP limiter. Each
+message costs 2-3 OpenAI calls, so on a low-tier API key the account's own rate limit
+binds first; raise the delay if you see the client backing off on `429`s.
+
+### Running on an OpenAI account with no payment method
+
+Such accounts get **50 requests per day per chat model**, counted daily rather than
+per minute, so no amount of `--delay` helps once the budget is gone. Two things follow
+from how the quota is shaped:
+
+- **Each model has its own bucket**, so the classifier and the answering model never
+  compete. Spreading them across two models is what makes the free tier workable;
+  `gpt-4o-mini` and `gpt-4.1` are two separate 50/day allowances.
+- **Embeddings are not the constraint** -- `text-embedding-3-small` allows 2000/day, so
+  switching to `EMBEDDING_PROVIDER=local` buys nothing here.
+
+The classifier runs on every message, so **50 messages per day** is the practical
+ceiling, and one full `eval_behavior` run costs about 21 of them. If the classifier
+starts returning errors, check the daily budget before suspecting the code:
+
+```bash
+curl -s -o /dev/null -D- https://api.openai.com/v1/chat/completions \
+  -H "Authorization: Bearer $OPENAI_API_KEY" -H 'Content-Type: application/json' \
+  -d '{"model":"gpt-4o-mini","max_completion_tokens":1,"messages":[{"role":"user","content":"hi"}]}' \
+  | grep -i x-ratelimit
 ```
 
 The offline suite checks chunking, cleaning, CSV handling, file validation, SSRF blocking, HTML sanitizing, injection and handoff detection, history normalization, prompt-boundary escaping and rate limiting. Through the real API it also checks that off-topic and jailbreak messages make **zero generation calls**, injection patterns make **zero calls of any kind**, below-threshold questions never reach the LLM, leaked prompt text gets replaced, admin auth is enforced, and deleting a source removes its chunks from retrieval.

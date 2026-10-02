@@ -15,6 +15,10 @@ INJECTION_PATTERNS = [re.compile(p, re.I) for p in [
     r"\b(jailbreak|developer mode|god mode|dan mode|do anything now)\b",
     r"\bnew (instructions|rules|persona|role)\b",
     r"</?\s*(context|system|instructions?|assistant)\s*>",
+    # A message that opens by impersonating a privileged role ("SYSTEM: ...").
+    # Anchored, because a real customer never starts a question this way --
+    # unanchored it would flag "a problem with your system: it crashed".
+    r"^\[?\s*(system|developer|assistant|admin|root)\s*\]?\s*[:\-]",
     r"\bwhat (are|were) your (instructions|rules)\b",
 ]]
 

@@ -18,11 +18,11 @@ def _bool(name: str, default: bool = False) -> bool:
 class Config:
     app_name: str = field(default_factory=lambda: os.getenv("APP_NAME", "ScopeGuard"))
 
-    # LLMs
-    anthropic_api_key: str = field(default_factory=lambda: os.getenv("ANTHROPIC_API_KEY", ""))
-    anthropic_model: str = field(default_factory=lambda: os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5-5"))
+    # LLMs. Both must be non-reasoning chat models: the classifier is capped at 8 output
+    # tokens, which reasoning models would spend entirely before emitting a label.
+    answer_model: str = field(default_factory=lambda: os.getenv("OPENAI_MODEL", "gpt-4.1"))
     classifier_model: str = field(
-        default_factory=lambda: os.getenv("CLASSIFIER_MODEL", "claude-haiku-4-5-20251001")
+        default_factory=lambda: os.getenv("CLASSIFIER_MODEL", "gpt-4o-mini")
     )
     max_answer_tokens: int = field(default_factory=lambda: int(os.getenv("MAX_ANSWER_TOKENS", "600")))
 
@@ -41,7 +41,7 @@ class Config:
 
     # RAG
     default_relevance_threshold: float = field(
-        default_factory=lambda: float(os.getenv("RELEVANCE_THRESHOLD", "0.35"))
+        default_factory=lambda: float(os.getenv("RELEVANCE_THRESHOLD", "0.30"))
     )
     top_k: int = field(default_factory=lambda: int(os.getenv("TOP_K", "5")))
     chunk_tokens: int = field(default_factory=lambda: int(os.getenv("CHUNK_TOKENS", "500")))
