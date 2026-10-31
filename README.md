@@ -32,6 +32,8 @@ npm install
 npm run dev                      # http://localhost:5173, proxies /api to :8000
 ```
 
+On Windows (PowerShell), activate the virtual environment with `.venv\Scripts\activate` and copy the env file with `copy ..\.env.example .env`.
+
 ## Environment variables
 
 | Variable | Default | Purpose |
@@ -82,7 +84,7 @@ Each step is cheaper than the next, so most junk never costs a generation call.
 ```bash
 cd backend
 
-# 1. Offline suite: no API keys needed (LLM mocked, hash embedder). 47 tests.
+# 1. Offline suite: no API keys needed (LLM mocked, hash embedder). 56 tests.
 pytest -q
 
 # 2a. Live behaviour evaluation against a local dev server (uvicorn on :8000)

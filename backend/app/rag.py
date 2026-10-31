@@ -5,7 +5,7 @@ Chat order (cheapest first, so most junk never costs a generation call):
   2. Scope classifier   ~tiny     IN_SCOPE / OUT_OF_SCOPE / GREETING / HUMAN_HANDOFF
   3. Retrieval          embedding top-k chunks
   4. Relevance gate     free      below threshold -> fallback, no LLM
-  5. Generation         Claude    streamed, with output leak check
+  5. Generation         OpenAI    streamed, with output leak check
 """
 from __future__ import annotations
 

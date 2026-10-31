@@ -1,6 +1,6 @@
 """Live behaviour evaluation against a running server with real API keys.
 
-    python -m tests.eval_behavior --base http://localhost:8000 [--admin-token TOKEN]
+    python -m tests.eval_behavior --base http://localhost:8000 [--delay SECONDS]
 
 Load the sample data first (python -m scripts.seed). Exit code is non-zero on any failure.
 """

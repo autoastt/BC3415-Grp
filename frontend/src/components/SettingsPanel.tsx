@@ -90,7 +90,7 @@ export default function SettingsPanel({ settings, onSaved }: { settings: Setting
               onChange={(e) => set("relevance_threshold", Number(e.target.value))} className="w-full accent-teal" />
             <p className="mt-1 text-xs text-muted">
               Higher means the bot says "I don't have that information" more often instead of answering from a weak match.
-              Default 0.35.
+              Default 0.30.
             </p>
           </div>
         </details>
