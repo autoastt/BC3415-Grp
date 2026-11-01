@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Blaze Burger Co. (sample site)</title>
+  <!--
+    Sample company website for the ScopeGuard demo. The chatbot's helpful links
+    (settings: order_url and quick_links) point at the sections below.
+    Prices and policies match sample_data/; update both together.
+    Nothing on this page is sent anywhere: orders and forms are demo-only.
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --paper: #F7F3EC; --card: #FFFFFF; --ink: #231A16; --muted: #6B5F58; --line: #E4DCD1;
+      --flame: #B3412E; --flame-dark: #8E3020; --flame-soft: #F6E1DC;
+      --mustard: #E0A526; --mustard-soft: #F8EDCF; --ok: #0F5C6B; --ok-soft: #DDEAEA;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.55 "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
+    h1, h2, h3 { font-family: "Bricolage Grotesque", system-ui, sans-serif; letter-spacing: -0.01em; margin: 0; line-height: 1.15; }
+    h2 { font-size: 28px; }
+    h3 { font-size: 18px; margin-top: 20px; }
+    p { margin: 8px 0; }
+    a { color: var(--flame-dark); }
+    :focus-visible { outline: 2px solid var(--flame); outline-offset: 2px; border-radius: 4px; }
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+    .demo-banner { background: var(--ink); color: #fff; font-size: 13px; text-align: center; padding: 6px 16px; }
+    header.site { position: sticky; top: 0; z-index: 10; background: var(--card); border-bottom: 1px solid var(--line); }
+    .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 24px; padding-top: 10px; padding-bottom: 10px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; font-size: 20px; color: var(--ink); text-decoration: none; }
+    .logo { width: 30px; height: 30px; border-radius: 8px; background: var(--flame); display: grid; place-items: center; }
+    nav.links { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+    nav.links a { padding: 6px 10px; border-radius: 6px; color: var(--muted); text-decoration: none; font-weight: 600; font-size: 14px; white-space: nowrap; }
+    nav.links a:hover { color: var(--ink); background: var(--paper); }
+    .hero { padding-top: 44px; padding-bottom: 36px; }
+    .hero h1 { font-size: clamp(32px, 6vw, 52px); max-width: 16ch; }
+    .hero p { font-size: 18px; color: var(--muted); max-width: 52ch; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 8px; padding: 10px 18px; font: 600 15px "Public Sans", sans-serif; cursor: pointer; text-decoration: none; }
+    .btn-primary { background: var(--flame); color: #fff; }
+    .btn-primary:hover { background: var(--flame-dark); }
+    .btn-primary:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-ghost { background: var(--card); color: var(--ink); border: 1px solid var(--line); }
+    section { scroll-margin-top: 72px; padding: 36px 0; border-top: 1px solid var(--line); }
+    section:target { background: linear-gradient(var(--mustard-soft), transparent 220px); }
+    .lead { color: var(--muted); max-width: 64ch; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+    .grid-2 { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); margin-top: 16px; }
+    .order-grid { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); margin-top: 16px; }
+    @media (min-width: 860px) { .order-grid { grid-template-columns: minmax(0, 1fr) 320px; align-items: start; } .cart { position: sticky; top: 80px; } }
+    .segmented { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; padding: 2px; background: var(--card); }
+    .segmented button { border: 0; background: none; padding: 7px 14px; border-radius: 6px; font: 600 14px "Public Sans", sans-serif; color: var(--muted); cursor: pointer; }
+    .segmented button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+    .item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .item:last-child { border-bottom: 0; }
+    .item .info { flex: 1; min-width: 0; }
+    .item .name { font-weight: 600; }
+    .item .desc { color: var(--muted); font-size: 13px; }
+    .price { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .qty { display: inline-flex; align-items: center; gap: 6px; }
+    .qty button { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); font-size: 17px; line-height: 1; cursor: pointer; }
+    .qty button:hover { border-color: var(--flame); color: var(--flame); }
+    .qty output { min-width: 18px; text-align: center; font-variant-numeric: tabular-nums; }
+    .row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; }
+    .total { font-weight: 700; font-size: 17px; border-top: 1px solid var(--line); margin-top: 8px; padding-top: 8px; }
+    .note { font-size: 13px; color: var(--muted); }
+    .notice { border-radius: 8px; padding: 10px 12px; font-size: 14px; margin-top: 12px; }
+    .notice.ok { background: var(--ok-soft); color: var(--ok); }
+    .notice.warn { background: var(--mustard-soft); color: #6A4B0C; }
+    table { width: 100%; border-collapse: collapse; }
+    td, th { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-weight: 500; font-size: 13px; }
+    .tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--mustard-soft); color: #6A4B0C; margin-left: 6px; }
+    label { display: block; font-weight: 600; font-size: 14px; margin: 12px 0 4px; }
+    input, select, textarea { width: 100%; font: 15px "Public Sans", sans-serif; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); }
+    textarea { min-height: 90px; resize: vertical; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .chips button { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 6px 14px; font: 600 14px "Public Sans", sans-serif; cursor: pointer; }
+    .chips button[aria-pressed="true"] { border-color: var(--flame); background: var(--flame-soft); color: var(--flame-dark); }
+    footer { padding: 28px 0 40px; color: var(--muted); font-size: 14px; }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+</head>
+<body>
+  <div class="demo-banner">Sample website for the ScopeGuard demo. Blaze Burger Co. is fictional: no real orders, payments or requests are made.</div>
+
+  <header class="site">
+    <div class="wrap bar">
+      <a class="brand" href="#top">
+        <span class="logo" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M12 2c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3 0-3 0-6 1-8.5z"/></svg>
+        </span>
+        Blaze Burger Co.
+      </a>
+      <nav class="links" aria-label="Sections">
+        <a href="#order">Order</a><a href="#menu">Menu</a><a href="#locations">Outlets</a><a href="#rewards">Rewards</a>
+        <a href="#allergens">Allergens</a><a href="#gift-cards">Gift cards</a><a href="#refunds">Refunds</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <div class="wrap hero">
+      <h1>Burgers, fries and shakes, made to order.</h1>
+      <p>Dine in, take away or get delivery from our Jurong Point outlet. Questions? Ask Blaze, our assistant.</p>
+      <p><a class="btn btn-primary" href="#order">Start an order</a> <a class="btn btn-ghost" href="/">Ask the assistant</a></p>
+    </div>
+
+    <!-- ORDER -->
+    <section id="order">
+      <div class="wrap">
+        <h2>Order online</h2>
+        <p class="lead">Delivery comes from Jurong Point within 5 km: $3.50, free from $35, minimum order $15, usually 30 to 45 minutes. Pick-up is available at both outlets.</p>
+        <div class="segmented" role="group" aria-label="Order type">
+          <button type="button" data-mode="delivery" aria-pressed="true">Delivery</button>
+          <button type="button" data-mode="pickup" aria-pressed="false">Pick-up</button>
+        </div>
+        <div id="pickup-outlet" hidden style="max-width:320px">
+          <label for="outlet">Pick-up outlet</label>
+          <select id="outlet"><option>Jurong Point</option><option>Tanjong Pagar</option></select>
+        </div>
+        <div class="order-grid">
+          <div class="card" id="order-items"></div>
+          <aside class="card cart" aria-labelledby="cart-title">
+            <h3 id="cart-title" style="margin-top:0">Your order</h3>
+            <div id="cart-lines" class="note">Nothing added yet.</div>
+            <div id="cart-totals"></div>
+            <button type="button" class="btn btn-primary" id="place" style="width:100%;margin-top:12px" disabled>Place demo order</button>
+            <p class="note">No payment is taken. Promotions can't be combined, and Tuesday Two-for-One isn't valid on delivery.</p>
+            <div id="order-result" aria-live="polite"></div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- MENU -->
+    <section id="menu">
+      <div class="wrap">
+        <h2>Menu and prices</h2>
+        <p class="lead">Prices are in Singapore dollars, include GST, and are the same at every outlet.</p>
+        <div id="menu-tables"></div>
+        <div class="grid-2">
+          <div class="card"><h3 style="margin-top:0">Meal upgrade</h3><p>Add regular Classic Fries and a soft drink to any burger for $5.50. Large fries: $1.00 more.</p></div>
+          <div class="card"><h3 style="margin-top:0">Add-ons</h3><p>Extra beef patty $4.00 · Extra cheese $1.00 · Bacon $2.50 · Avocado $2.00 · Gluten-free bun $1.50</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LOCATIONS -->
+    <section id="locations">
+      <div class="wrap">
+        <h2>Outlets and opening hours</h2>
+        <div class="grid-2">
+          <div class="card">
+            <h3 style="margin-top:0">Jurong Point</h3>
+            <p>1 Jurong West Central 2, #02-15, Singapore 648886</p>
+            <table><tbody>
+              <tr><td>Monday to Thursday</td><td class="price">11:00 – 22:00</td></tr>
+              <tr><td>Friday and Saturday</td><td class="price">11:00 – 23:00</td></tr>
+              <tr><td>Sunday</td><td class="price">11:00 – 21:00</td></tr>
+            </tbody></table>
+            <p class="note">Dine-in, takeaway and delivery. Parking in the Jurong Point mall car park.</p>
+          </div>
+          <div class="card">
+            <h3 style="margin-top:0">Tanjong Pagar</h3>
+            <p>25 Tanjong Pagar Road, Singapore 088451</p>
+            <table><tbody>
+              <tr><td>Monday to Friday</td><td class="price">10:30 – 22:00</td></tr>
+              <tr><td>Saturday and Sunday</td><td class="price">12:00 – 22:00</td></tr>
+            </tbody></table>
+            <p class="note">Dine-in and takeaway only, no delivery. Street parking only.</p>
+          </div>
+        </div>
+        <p class="note" style="margin-top:14px">Public holidays: Sunday hours. Christmas Eve and New Year's Eve: close at 18:00. Closed on the first day of Chinese New Year. Last orders 30 minutes before closing.</p>
+      </div>
+    </section>
+
+    <!-- REWARDS -->
+    <section id="rewards">
+      <div class="wrap">
+        <h2>Blaze Rewards and promotions</h2>
+        <div class="grid-2">
+          <div class="card">
+            <h3 style="margin-top:0">Blaze Rewards</h3>
+            <p>Join free in the app. Earn 1 point for every $1 spent, in store or in the app.</p>
+            <table><tbody>
+              <tr><td class="price">100 points</td><td>Free Classic Fries (regular)</td></tr>
+              <tr><td class="price">250 points</td><td>Free Classic Blaze burger</td></tr>
+              <tr><td class="price">400 points</td><td>Free burger meal</td></tr>
+            </tbody></table>
+            <p class="note">Points expire after 12 months and can't be exchanged for cash. Birthday treat: a free milkshake in your birthday month (add your birthday to the app at least 30 days before).</p>
+          </div>
+          <div class="card">
+            <h3 style="margin-top:0">Current promotions</h3>
+            <p><strong>Tuesday Two-for-One:</strong> buy a Classic Blaze, get a second one free. Dine-in and takeaway only.</p>
+            <p><strong>Student deal:</strong> 10% off any order on weekdays before 17:00 with a valid student card.</p>
+            <p class="note">One promotion per order. Promotions can't be combined.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ALLERGENS -->
+    <section id="allergens">
+      <div class="wrap">
+        <h2>Allergen and dietary guide</h2>
+        <div class="card" style="margin-top:16px">
+          <p>Our kitchens handle wheat (gluten), milk, eggs, soy, sesame, mustard and peanuts. Because of shared preparation areas and fryers, we can't guarantee any item is allergen-free.</p>
+          <table><tbody>
+            <tr><th>Item</th><th>Contains</th></tr>
+            <tr><td>Brioche bun</td><td>Wheat, milk, eggs, sesame</td></tr>
+            <tr><td>Blaze sauce</td><td>Egg, mustard</td></tr>
+            <tr><td>Chipotle mayo</td><td>Egg</td></tr>
+            <tr><td>Herb yoghurt</td><td>Milk</td></tr>
+          </tbody></table>
+          <p>Gluten-free buns cost $1.50 extra and are toasted on a shared grill. Fries, onion rings and the Crispy Chicken Flame share one sunflower-oil fryer. The Garden Ember can be made vegan at no extra cost.</p>
+          <p>Halal: beef and chicken come from halal-certified suppliers, but our outlets aren't halal-certified because we serve bacon.</p>
+          <p class="notice warn">Severe allergy? Speak to the outlet manager before ordering. If you have a reaction, get medical help first, then contact support.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- GIFT CARDS -->
+    <section id="gift-cards">
+      <div class="wrap">
+        <h2>Gift cards</h2>
+        <p class="lead">Digital gift cards from $20 to $200 are available in the Blaze Burger Co. app.</p>
+        <div class="card" style="max-width:520px">
+          <div class="chips" role="group" aria-label="Gift card amount" id="gift-amounts">
+            <button type="button" aria-pressed="false">$20</button><button type="button" aria-pressed="true">$50</button>
+            <button type="button" aria-pressed="false">$100</button><button type="button" aria-pressed="false">$200</button>
+          </div>
+          <button type="button" class="btn btn-primary" id="gift-buy" style="margin-top:14px">Buy in the app (demo)</button>
+          <div id="gift-result" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- REFUNDS -->
+    <section id="refunds">
+      <div class="wrap">
+        <h2>Refund request</h2>
+        <p class="lead">Missing, wrong or unsatisfactory items: contact us within 24 hours with your order number and a photo. Approved refunds go back to your payment method in 5 to 7 business days. If a delivery is more than 30 minutes late, you can ask for the delivery fee back.</p>
+        <form class="card" id="refund-form" style="max-width:560px" novalidate>
+          <p class="note" style="margin-top:0">Demo form: nothing is sent. Please don't enter real personal details.</p>
+          <label for="r-order">Order number</label>
+          <input id="r-order" placeholder="BB-1234" required />
+          <label for="r-issue">What happened?</label>
+          <select id="r-issue"><option>Missing items</option><option>Incorrect order</option><option>Quality issue</option><option>Late delivery</option></select>
+          <label for="r-details">Details</label>
+          <textarea id="r-details" placeholder="Tell us what went wrong"></textarea>
+          <button type="submit" class="btn btn-primary" style="margin-top:14px">Submit request (demo)</button>
+          <div id="refund-result" aria-live="polite"></div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">Blaze Burger Co. is a fictional company created for the ScopeGuard demo. <a href="/">Back to the chat assistant</a></div>
+  </footer>
+
+  <script>
+    const MENU = [
+      { group: "Burgers", items: [
+        { id: "classic", name: "The Classic Blaze", price: 9.90, desc: "150 g grass-fed beef patty, cheddar, lettuce, tomato, pickles and Blaze sauce on a toasted brioche bun." },
+        { id: "inferno", name: "Double Inferno", price: 14.50, desc: "Two beef patties, pepper jack, jalapeños, chipotle mayo and crispy onions.", tag: "Hot" },
+        { id: "bacon", name: "Smoky Bacon Stack", price: 12.90, desc: "Beef patty, streaky bacon, smoked cheddar, caramelised onions and BBQ sauce." },
+        { id: "chicken", name: "Crispy Chicken Flame", price: 10.90, desc: "Buttermilk fried chicken thigh, slaw, honey sriracha and pickles." },
+        { id: "ember", name: "Garden Ember", price: 10.50, desc: "Chickpea and black bean patty, avocado, rocket, tomato and herb yoghurt. Can be made vegan.", tag: "Vegetarian" },
+        { id: "little", name: "Little Blaze", price: 6.90, desc: "Kids 12 and under: small beef or chicken patty with cheese, small fries and a juice box." },
+      ]},
+      { group: "Sides", items: [
+        { id: "fries", name: "Classic Fries (regular)", price: 3.90 },
+        { id: "fries-l", name: "Classic Fries (large)", price: 4.90 },
+        { id: "sweet", name: "Sweet Potato Fries", price: 5.50 },
+        { id: "rings", name: "Onion Rings (6 pieces)", price: 4.90 },
+        { id: "truffle", name: "Truffle Parmesan Fries", price: 6.90 },
+        { id: "slaw", name: "House Slaw", price: 3.50 },
+      ]},
+      { group: "Drinks", items: [
+        { id: "soda", name: "Soft drink (Coke, Coke Zero, Sprite)", price: 2.90 },
+        { id: "lemonade", name: "Fresh Lemonade", price: 3.90 },
+        { id: "shake", name: "Milkshake (vanilla, chocolate, salted caramel)", price: 6.50 },
+        { id: "tea", name: "Iced Lemon Tea", price: 3.50 },
+      ]},
+    ];
+    const DELIVERY_FEE = 3.50, FREE_DELIVERY_FROM = 35, MIN_DELIVERY = 15;
+    const ALL = MENU.flatMap((g) => g.items);
+    const state = { mode: "delivery", qty: {} };
+    const $ = (id) => document.getElementById(id);
+    const money = (n) => "$" + n.toFixed(2);
+    const el = (tag, attrs = {}, text) => {
+      const e = document.createElement(tag);
+      Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
+      if (text !== undefined) e.textContent = text;
+      return e;
+    };
+
+    function renderItems() {
+      const box = $("order-items");
+      MENU.forEach((g, i) => {
+        box.append(el("h3", i === 0 ? { style: "margin-top:0" } : {}, g.group));
+        g.items.forEach((it) => {
+          const row = el("div", { class: "item" });
+          const info = el("div", { class: "info" });
+          const name = el("div", { class: "name" }, it.name);
+          if (it.tag) name.append(el("span", { class: "tag" }, it.tag));
+          info.append(name);
+          if (it.desc) info.append(el("div", { class: "desc" }, it.desc));
+          const qty = el("div", { class: "qty" });
+          const minus = el("button", { type: "button", "aria-label": "Remove one " + it.name }, "−");
+          const out = el("output", { id: "q-" + it.id, "aria-label": it.name + " quantity" }, "0");
+          const plus = el("button", { type: "button", "aria-label": "Add one " + it.name }, "+");
+          minus.onclick = () => change(it.id, -1);
+          plus.onclick = () => change(it.id, 1);
+          qty.append(minus, out, plus);
+          row.append(info, el("div", { class: "price" }, money(it.price)), qty);
+          box.append(row);
+        });
+      });
+    }
+
+    function renderMenu() {
+      const box = $("menu-tables");
+      MENU.forEach((g) => {
+        box.append(el("h3", {}, g.group));
+        const t = el("table");
+        const body = el("tbody");
+        g.items.forEach((it) => {
+          const tr = el("tr");
+          const td = el("td");
+          td.append(el("strong", {}, it.name));
+          if (it.tag) td.append(el("span", { class: "tag" }, it.tag));
+          if (it.desc) td.append(el("div", { class: "note" }, it.desc));
+          tr.append(td, el("td", { class: "price", style: "text-align:right" }, money(it.price)));
+          body.append(tr);
+        });
+        t.append(body);
+        box.append(t);
+      });
+    }
+
+    function change(id, d) {
+      state.qty[id] = Math.max(0, Math.min(20, (state.qty[id] || 0) + d));
+      $("q-" + id).textContent = state.qty[id];
+      $("order-result").textContent = "";
+      renderCart();
+    }
+
+    function totals() {
+      const subtotal = ALL.reduce((s, it) => s + (state.qty[it.id] || 0) * it.price, 0);
+      const fee = state.mode === "delivery" && subtotal > 0 && subtotal < FREE_DELIVERY_FROM ? DELIVERY_FEE : 0;
+      return { subtotal, fee, total: subtotal + fee };
+    }
+
+    function renderCart() {
+      const lines = $("cart-lines"), tot = $("cart-totals");
+      lines.replaceChildren(); tot.replaceChildren();
+      const chosen = ALL.filter((it) => state.qty[it.id]);
+      if (!chosen.length) { lines.textContent = "Nothing added yet."; $("place").disabled = true; return; }
+      chosen.forEach((it) => {
+        const r = el("div", { class: "row" });
+        r.append(el("span", {}, state.qty[it.id] + " × " + it.name), el("span", { class: "price" }, money(state.qty[it.id] * it.price)));
+        lines.append(r);
+      });
+      const { subtotal, fee, total } = totals();
+      const add = (label, value, cls = "row") => { const r = el("div", { class: cls }); r.append(el("span", {}, label), el("span", { class: "price" }, value)); tot.append(r); };
+      add("Subtotal", money(subtotal));
+      if (state.mode === "delivery") add("Delivery", fee ? money(fee) : "Free");
+      add("Total", money(total), "row total");
+      const short = state.mode === "delivery" && subtotal < MIN_DELIVERY;
+      if (short) tot.append(el("p", { class: "notice warn" }, "Delivery orders need at least " + money(MIN_DELIVERY) + " of food. Add " + money(MIN_DELIVERY - subtotal) + " more."));
+      else if (state.mode === "delivery" && fee) tot.append(el("p", { class: "note" }, "Add " + money(FREE_DELIVERY_FROM - subtotal) + " more for free delivery."));
+      $("place").disabled = short;
+    }
+
+    document.querySelectorAll(".segmented button").forEach((b) => {
+      b.onclick = () => {
+        state.mode = b.dataset.mode;
+        document.querySelectorAll(".segmented button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+        $("pickup-outlet").hidden = state.mode !== "pickup";
+        renderCart();
+      };
+    });
+
+    $("place").onclick = () => {
+      const num = "BB-" + Math.floor(1000 + Math.random() * 9000);
+      const where = state.mode === "delivery"
+        ? "It would usually arrive in 30 to 45 minutes."
+        : "Pick it up at " + $("outlet").value + ".";
+      $("order-result").replaceChildren(el("p", { class: "notice ok" }, "Demo order " + num + " placed for " + money(totals().total) + ". " + where + " No payment was taken."));
+      Object.keys(state.qty).forEach((id) => { state.qty[id] = 0; $("q-" + id).textContent = "0"; });
+      renderCart();
+    };
+
+    document.querySelectorAll("#gift-amounts button").forEach((b) => {
+      b.onclick = () => document.querySelectorAll("#gift-amounts button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    });
+    $("gift-buy").onclick = () => {
+      const amount = document.querySelector('#gift-amounts [aria-pressed="true"]').textContent;
+      $("gift-result").replaceChildren(el("p", { class: "notice ok" }, "Demo only: in the real app this would open checkout for a " + amount + " digital gift card."));
+    };
+
+    $("refund-form").onsubmit = (e) => {
+      e.preventDefault();
+      const order = $("r-order").value.trim();
+      const msg = order
+        ? el("p", { class: "notice ok" }, "Demo request for " + order + " received. Nothing was sent; in a real deployment this goes to the support team, who review every refund.")
+        : el("p", { class: "notice warn" }, "Add your order number so the team can find your order.");
+      $("refund-result").replaceChildren(msg);
+    };
+
+    renderItems();
+    renderMenu();
+    renderCart();
+  </script>
+</body>
+</html>

@@ -10,13 +10,13 @@ ScopeGuard is a well-engineered prototype. The RAG pipeline, the cost-ordered gu
 2. **Human handoff doesn't include a case summary.** The case study's "escalate complex cases to human agents with summarized case histories" is only half done: the bot shares a contact address and stops there.
 3. **The injection filter blocked some normal questions** (now fixed, see [2.1](#21-the-injection-filter-blocked-normal-questions-fixed)). Questions about the "rules" of a promotion or refund were refused.
 4. **The demo knowledge base is too small to show retrieval working.** 6 files make 6 chunks, and every question retrieves 5 of them.
-5. **The repo doesn't explain the business problem or who did what.** The README is a strong engineering document but has no problem statement, KPIs or team roles, and the git history shows 2 commits from one account.
-6. **User data handling is thin.** Raw questions and client IP addresses are logged indefinitely, with no redaction or privacy notice.
+5. **The repo didn't explain the business problem or who did what** (now partly fixed). The README now has a problem statement, business value, KPIs and a team roles table with placeholder names. The git history still shows commits from only one or two accounts.
+6. **User data handling was thin** (now partly fixed). Logged questions are now encrypted and client IPs are stored only as a one-way hash (see [2.6](#26-personal-data-in-logs-partly-fixed)). Redaction, a retention limit and a privacy notice are still missing.
 
 ### What was checked
 
 - Read every backend, frontend, test and sample-data file.
-- Ran the offline test suite on Python 3.12 and 3.13: **47 of 47 tests pass on both**. The pinned requirements install cleanly on both versions. After the fixes in 2.1 and 2.5, the suite has 56 tests and all of them pass.
+- Ran the offline test suite on Python 3.12 and 3.13: **47 of 47 tests pass on both**. The pinned requirements install cleanly on both versions. After the fixes in 2.1 and 2.5 and the new features (helpful links and log encryption), the suite has 99 tests and all of them pass on both versions.
 - Probed `guard.py` with normal customer questions to find false positives.
 - Measured how the sample files are chunked (each file becomes 1 chunk, between 197 and 475 tokens).
 
@@ -34,7 +34,7 @@ ScopeGuard is a well-engineered prototype. The RAG pipeline, the cost-ordered gu
 | A use case involving an LLM or AI agent (LangChain, OpenAI API, etc.) | **Met for LLM, partly met for agent** | Uses the OpenAI SDK directly, which the brief allows ("etc."). The pipeline is a fixed sequence of steps with no tools, so it's hard to call it an agent. See [3.2](#32-make-it-an-ai-agent-order-tracking-with-tool-calling). |
 | Integration of RAG (vector database + retrieval logic) | **Met, strong** | ChromaDB, paragraph-aware chunking, relevance gate, cited sources. Weakness: the demo corpus is too small for retrieval to visibly choose between documents (see [2.3](#23-the-demo-knowledge-base-is-too-small-to-show-retrieval)). |
 | Short demo video (3 to 5 min) | **To do** | See [VIDEO_WALKTHROUGH.md](VIDEO_WALKTHROUGH.md). |
-| Optional: GitHub repo with documentation | **Met technically** | The README covers setup, design and API in depth. It's missing a problem statement, business value, an architecture picture and team roles (see [3.1](#31-quick-wins-before-recording)). |
+| Optional: GitHub repo with documentation | **Met** | The README covers setup, design and API in depth, and now opens with a problem statement, business value, KPIs and team roles. An architecture picture is in `VIDEO_WALKTHROUGH.md` and could be copied in. |
 
 ### Case study capabilities (Shopify example)
 
@@ -44,18 +44,18 @@ ScopeGuard is a well-engineered prototype. The RAG pipeline, the cost-ordered gu
 | Retrieve relevant policy documents using RAG | **Met** | `rag.handle_chat` steps 3 to 5 |
 | Escalate complex cases to human agents **with summarized case histories** | **Partly met** | `rag._handoff_text` returns a support contact. No summary or ticket is created. |
 | Challenge: hallucinations | **Met** | Relevance gate (`rag.py` lines 102 to 110), "answer only from context" prompt, detection when the model itself falls back |
-| Challenge: ethical use of user data | **Gap** | `db.log_question` stores every raw question plus the client IP, with no retention limit, redaction or notice |
+| Challenge: ethical use of user data | **Partly met** | Questions are encrypted at rest and IPs hashed (`log_crypto.py`). No retention limit, redaction or notice yet. |
 | Challenge: transparent fallback mechanisms | **Met** | Route tags in the UI, "I don't have that information" fallback, "Not in knowledge base" log view |
 
 ### Evaluation criteria
 
 | Criterion | Assessment |
 |---|---|
-| Problem relevance and originality | A restaurant chain is a reasonable but generic choice, and nothing in the repo explains why the problem matters or for whom. Add a short problem statement with numbers (question volume, staff time). The project folder is named *AIAccounting*: if the module expects a finance or accounting angle, frame the business value in cost terms (cost per conversation, staff hours saved), or consider re-targeting ([3.8](#38-re-target-to-another-industry)). |
-| Technical design and implementation | Strong. Clear module boundaries, cost-ordered pipeline, defensive input handling, 56 tests. |
+| Problem relevance and originality | A restaurant chain is a reasonable but generic choice. The README now explains the problem and the business value; the "Order online" link also gives a revenue angle, not only a cost-saving one. The project folder is named *AIAccounting*: if the module expects a finance or accounting angle, frame the business value in cost terms (cost per conversation, staff hours saved), or consider re-targeting ([3.8](#38-re-target-to-another-industry)). |
+| Technical design and implementation | Strong. Clear module boundaries, cost-ordered pipeline, defensive input handling, 99 tests. |
 | Effectiveness of the AI in solving the problem | Hard for a marker to judge. No evaluation results are recorded in the repo. Run `eval_behavior.py` and put the scores in the README and the video. |
 | Creativity and integration of RAG/GenAI | Good: a cheap classifier as gatekeeper, a relevance gate before generation, a stream leak check, and the question log as a feedback loop. Adding tools ([3.2](#32-make-it-an-ai-agent-order-tracking-with-tool-calling)) and case summaries ([3.3](#33-human-handoff-with-a-case-summary)) would make it stand out more. |
-| Collaboration and division of work | **Weak evidence.** `git log` shows 2 commits (`init`, `change to openai model`), both from one account (`autoastt`). Markers who open the GitHub repo will see one contributor. Add a "Team and roles" section to the README, and have each member commit their own future-work item. |
+| Collaboration and division of work | **Weak evidence.** `git log` shows 2 commits (`init`, `change to openai model`), both from one account (`autoastt`). Markers who open the GitHub repo will see one contributor. The README now has a "Team and roles" table (fill in the names). Have each member commit their own future-work item. |
 
 ---
 
@@ -119,11 +119,15 @@ All four are now fixed:
 | [`SettingsPanel.tsx`](../frontend/src/components/SettingsPanel.tsx) line 93 | Said "Default 0.35", but the real default is 0.30 (`config.py` line 44 and the README). | Now says 0.30. |
 | [`rag.py`](../backend/app/rag.py) line 8 | Docstring said generation uses "Claude", but the code calls OpenAI. Left over from the `change to openai model` commit. | Now says OpenAI. |
 | [`eval_behavior.py`](../backend/tests/eval_behavior.py) line 3 | Usage line mentioned `--admin-token TOKEN`, but no such flag exists. | Now shows the real `--delay` flag. |
-| [`README.md`](../README.md) "Local development" | Only had Mac/Linux commands (`source .venv/bin/activate`, `cp`). | Added a Windows line. The test count is updated to 56. |
+| [`README.md`](../README.md) "Local development" | Only had Mac/Linux commands (`source .venv/bin/activate`, `cp`). | Added a Windows line and updated the test count. |
 
-### 2.6 Personal data in logs
+### 2.6 Personal data in logs (partly fixed)
 
-`rag.handle_chat` logs every question with the client IP (`rag.py` line 55, `db.py` line 82). Customers type phone numbers, emails, order numbers and health details (allergies) into support chats. Nothing is redacted, nothing expires, and the UI doesn't say that messages are stored. See [3.5](#35-privacy-and-responsible-ai).
+`rag.handle_chat` logs every question with the client IP. Customers type phone numbers, emails, order numbers and health details (allergies) into support chats.
+
+**Fixed:** [`log_crypto.py`](../backend/app/log_crypto.py) now encrypts each question with Fernet before it's written to SQLite, and replaces the IP with a keyed one-way hash. The admin log view decrypts questions; nothing else does. The key comes from `LOG_ENCRYPTION_KEY`, or is generated in the data folder if that's not set. Rows from before the change are encrypted at startup.
+
+**Still open:** nothing is redacted, nothing expires, and the chat UI doesn't say that messages are stored. See [3.5](#35-privacy-and-responsible-ai).
 
 ### 2.7 Known limitations already listed in the README
 
@@ -151,7 +155,8 @@ Ordered from quick wins to larger features. Each item names the files to change 
 
 - [x] Apply the regex fix in [2.1](#21-the-injection-filter-blocked-normal-questions-fixed) and add the six questions to the tests.
 - [x] Fix the four mismatches in [2.5](#25-small-mismatches-between-docs-ui-and-code-fixed).
-- [ ] Add to the top of the README: a **Problem statement** (3 to 4 sentences), **Business value and KPIs** (see 3.6), a **Team and roles** table (name, what they built, which video segment), and the architecture diagram from `VIDEO_WALKTHROUGH.md`.
+- [x] Add to the top of the README: a **Problem statement**, **Business value and KPIs**, and a **Team and roles** table. *Still to do: fill in real names and check the roles match who built what.*
+- [ ] Copy the architecture diagram from `VIDEO_WALKTHROUGH.md` into the README.
 - [ ] Run `eval_behavior.py` and paste the four summary lines into the README under "Testing".
 - [ ] Either enlarge the sample knowledge base or lower `CHUNK_TOKENS` ([2.3](#23-the-demo-knowledge-base-is-too-small-to-show-retrieval)).
 - [ ] Have each member make at least one commit under their own GitHub account (for example, their README section).
@@ -255,8 +260,10 @@ The README's "History is client-supplied" limitation. This is also a preconditio
 
 ### 3.5 Privacy and responsible AI
 
-- **Redact before logging.** In `db.log_question`, replace emails, phone numbers (Singapore numbers are 8 digits starting with 6, 8 or 9), and 13 to 19 digit card-like numbers with `[redacted]`.
-- **Don't keep raw IPs.** Store a salted hash, or nothing. The rate limiter needs the IP only in memory.
+- [x] **Encrypt logged questions.** Done in `log_crypto.py` (Fernet, key from `LOG_ENCRYPTION_KEY`).
+- [x] **Don't keep raw IPs.** Done: IPs are stored as a keyed one-way hash.
+- **Redact before logging.** Encryption protects stored data, but the admin can still read it. In `db.log_question`, replace emails, phone numbers (Singapore numbers are 8 digits starting with 6, 8 or 9), and 13 to 19 digit card-like numbers with `[redacted]` before encrypting.
+- **Keep the key safe.** In production, load `LOG_ENCRYPTION_KEY` from a secrets manager rather than a `.env` file, keep a backup copy, and rotate it by putting a new key first in the comma-separated list.
 - **Retention.** Delete log rows older than 90 days in `db.init()`, which runs at startup.
 - **Notice.** Add a line under the chat input in `ChatTab.tsx`: "Please don't share card details. Questions are stored to improve answers."
 - **In the report or video:** say which data goes to OpenAI (questions, retrieved chunks, recent history), and check OpenAI's current API data-usage policy before making any claims about it.
@@ -273,6 +280,7 @@ The case study measures success as faster responses and higher satisfaction. Col
   - **Median response time**
   - **Cost per conversation** = tokens × model price
 - Optional: a thumbs-up/down on each answer in `MessageBubble.tsx`, stored with the log row, as a satisfaction proxy.
+- **Order-link clicks.** Record which helpful links customers click (a small `POST /api/link-click` from `MessageBubble.tsx`) to measure how often support questions turn into orders.
 
 ### 3.7 Better retrieval
 

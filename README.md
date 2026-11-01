@@ -2,16 +2,68 @@
 
 A company-scoped customer support chatbot. It answers only from a knowledge base the company controls, declines everything else, says so when it doesn't know, and resists attempts to change its role or reveal its configuration.
 
-The app name is set with `APP_NAME` in `.env`. Ships with a demo knowledge base for **Blaze Burger Co.**, a fictional burger chain (`sample_data/`).
+The app name is set with `APP_NAME` in `.env`. Ships with a demo knowledge base for **Blaze Burger Co.**, a fictional burger chain (`sample_data/`), and a matching sample company website (`frontend/public/sample-site.html`) that the bot links to.
+
+## Problem statement
+
+Blaze Burger Co. runs two outlets in Singapore and a delivery service. Like Shopify in the assignment's case study, most customer contacts are the same few questions: prices, opening hours, delivery fees, refunds and loyalty points. Answering them by phone, email or social media takes staff away from the kitchen and counter, doesn't happen after hours, and gives different answers depending on who replies.
+
+Off-the-shelf chatbots answer instantly but bring new problems. They make up prices and policies, can be talked into off-topic or harmful replies, and often store customer messages, which can include phone numbers, order details and allergies, with little protection.
+
+**The problem we solve:** how can a small food business give customers instant, accurate, round-the-clock answers from its own policies, point them to the right page to order or help themselves, and hand cases a person must handle to staff, without hallucinations, misuse or careless handling of personal data?
+
+## Business value
+
+| Benefit | How ScopeGuard delivers it |
+|---|---|
+| **Instant answers, 24/7** | Routine questions are answered in seconds, with the sources shown, instead of waiting for staff. |
+| **Lower support cost** | Answered questions cost 2 chat calls plus 1 embedding call: roughly half a US cent at OpenAI's 2025 list prices (check current pricing before quoting it). Off-topic questions cost one cheap classifier call, and blocked jailbreaks cost nothing. |
+| **Fewer wrong answers** | The bot answers only from company documents and says "I don't have that information" instead of guessing. |
+| **Questions turn into orders** | When a customer shows they want to buy, the reply includes an **Order online** link. Other replies link to the matching self-service page (menu, outlets, rewards, refund form). |
+| **Staff time goes where it's needed** | Allergic reactions, payment disputes and angry customers go straight to a person with the support contact. |
+| **Knows what's missing** | The "Not in knowledge base" log shows real questions the bot couldn't answer, so staff know which document to add next. |
+| **Trust and compliance** | Customer questions are encrypted at rest and IP addresses are stored only as a one-way hash. This supports the PDPA's requirement that organisations make reasonable security arrangements for personal data. |
+
+**Illustrative example** (assumed numbers, not measured): if staff spend 3 minutes on each routine question and the bot answers 300 of them a week, that's about 15 staff hours a week back, for under US$2 of API cost.
+
+**KPIs to track** (targets are illustrative):
+
+| KPI | Where to see it | Target |
+|---|---|---|
+| Answer rate: answered ÷ (all questions − greetings) | Question log summary | 70% or more |
+| No-answer rate | "Not in knowledge base" view | Falling week on week as content is added |
+| Handoff rate | "Handed off" view | Only cases a person must handle |
+| Declined rate | "Declined" view | Stable; spikes mean misuse or topics set too narrow |
+| Cost per answered question | OpenAI usage dashboard ÷ answered count | Under 1 US cent |
+
+## Team and roles
+
+> **Edit before submitting:** replace `[Name]` with each member's name, and adjust the responsibilities so they match who actually built what.
+
+| Member | Role | Responsible for | Video segment |
+|---|---|---|---|
+| [Name] | Project lead and architecture | Problem framing, business case, system design, Docker setup, README | 1: problem, solution, tech stack |
+| [Name] | Knowledge base and retrieval | Ingestion and chunking (`ingestion.py`), embeddings, ChromaDB (`vectorstore.py`), web scraper, sample data | 2: how documents get into RAG |
+| [Name] | Chat pipeline and LLM | Answer pipeline (`rag.py`), OpenAI calls and classifier (`llm.py`), system prompt (`prompts.py`), helpful links (`links.py`) | 3: how a question is answered |
+| [Name] | Safety and privacy | Injection guard (`guard.py`), admin auth, rate limiting, log encryption (`log_crypto.py`) | 4: guardrails and handoff |
+| [Name] | Frontend, testing and evaluation | React UI, sample company website, offline tests, live evaluation script, question log | 5: testing, insights, business value |
+
+The demo video plan is in [docs/VIDEO_WALKTHROUGH.md](docs/VIDEO_WALKTHROUGH.md). Known gaps and next steps are in [docs/GAPS_AND_FUTURE_WORK.md](docs/GAPS_AND_FUTURE_WORK.md).
 
 ## Quick start (Docker, one command)
 
 ```bash
-cp .env.example .env        # add OPENAI_API_KEY and set ADMIN_TOKEN
+cp .env.example .env        # add OPENAI_API_KEY, set ADMIN_TOKEN and LOG_ENCRYPTION_KEY
 docker compose up --build
 ```
 
-Open http://localhost:8080. The sample data loads automatically on first start (`SEED_SAMPLE_DATA=true`). The Knowledge Base tab asks for your `ADMIN_TOKEN`.
+Open http://localhost:8080. The sample data loads automatically on first start (`SEED_SAMPLE_DATA=true`). The Knowledge Base tab asks for your `ADMIN_TOKEN`. The sample company website is at http://localhost:8080/sample-site.html.
+
+Generate a `LOG_ENCRYPTION_KEY` with:
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
 
 ## Local development
 
@@ -45,6 +97,7 @@ On Windows (PowerShell), activate the virtual environment with `.venv\Scripts\ac
 | `OPENAI_EMBEDDING_MODEL` | `text-embedding-3-small` | |
 | `LOCAL_EMBEDDING_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` | Uncomment `sentence-transformers` in requirements first |
 | `ADMIN_TOKEN` | (empty = no auth) | Protects source and settings endpoints. Set it for any public deployment. |
+| `LOG_ENCRYPTION_KEY` | (empty = key generated in `DATA_DIR`) | Fernet key that encrypts questions in the question log. Comma-separate several keys to rotate (the first encrypts, all decrypt). Set it for any real deployment. |
 | `RELEVANCE_THRESHOLD` | `0.30` | Initial cosine-similarity gate. Once saved in the settings panel, the saved value wins. |
 | `TOP_K` / `CHUNK_TOKENS` / `CHUNK_OVERLAP` | `5` / `500` / `50` | Retrieval and chunking |
 | `HISTORY_MESSAGES` | `6` | Messages kept for follow-ups |
@@ -64,14 +117,17 @@ Each step is cheaper than the next, so most junk never costs a generation call.
 3. **Retrieval.** Top 5 chunks by cosine similarity. Short follow-ups are expanded with the previous user turn before embedding.
 4. **Relevance gate.** If the best score is under the threshold, the bot returns the fallback message and the LLM is never called. Only chunks above the threshold are passed on, so weak matches can't seed a hallucination.
 5. **Generation.** The answering model receives the spec's system prompt verbatim, with chunks inside `<context>`. The stream is watched for distinctive phrases from the system prompt; if any appear, output is cut and replaced with the refusal.
-6. **Logging.** Every question is logged as `in_scope`, `out_of_scope`, `no_answer`, `greeting`, `handoff` or `error`, with the reason and best match score. If the model itself replies with the fallback sentence, that is logged as `no_answer` and no sources are shown.
+6. **Helpful links (free).** Answers and "don't know" fallbacks get up to 3 links, never refusals or handoffs. If the customer wants to buy something ("I'd like two Classic Blazes", "how do I order?") or asks about delivery, the first link is **Order online**. Other links are matched by keyword (a price question gets "Full menu and prices"; a refund question gets "Refund request form"). Admins edit the links under **Bot settings → Helpful links**. By default they point at the bundled sample website.
+7. **Logging.** Every question is logged as `in_scope`, `out_of_scope`, `no_answer`, `greeting`, `handoff` or `error`, with the reason and best match score. The question text is encrypted and the visitor's IP is stored only as a keyed hash. If the model itself replies with the fallback sentence, that is logged as `no_answer` and no sources are shown.
 
 **Human handoff** happens on explicit requests, and when the classifier sees something a person should handle (allergic reaction, food safety, payment disputes, strong frustration). The bot shares the support contact and doesn't try to resolve it.
 
 ## Design decisions
 
-- **Streaming format is NDJSON** (`application/x-ndjson`), one JSON event per line: `token`, `replace`, `done` (classification, sources, handoff flag) or `error`. SSE is awkward with POST bodies; NDJSON is trivial to parse with `fetch`. Sources arrive in `done` because they depend on how the answer turned out.
+- **Streaming format is NDJSON** (`application/x-ndjson`), one JSON event per line: `token`, `replace`, `done` (classification, sources, handoff flag, links) or `error`. SSE is awkward with POST bodies; NDJSON is trivial to parse with `fetch`. Sources arrive in `done` because they depend on how the answer turned out.
 - **Admin token on knowledge-base writes.** Without it, any visitor could upload a document saying "all burgers are free" and the bot would repeat it as fact. This is the most important control beyond the spec.
+- **Links come from an allowlist, never from the model.** The model doesn't write URLs. Links are picked by code from the admin's settings and sent as structured data in the `done` event, so a reply can't contain an invented link or a phishing link planted by a prompt injection. URLs must be `https://`, `http://` or a path on this site (no `javascript:` or `//other-host`), and this is checked both when settings are saved and again in the browser before a link is rendered.
+- **The question log is encrypted at rest.** Customers type phone numbers, order numbers and allergies into support chats. Questions are encrypted with Fernet (AES-128-CBC with an HMAC-SHA256 integrity check) before they reach SQLite and decrypted only for the admin log view. Client IPs are replaced with a keyed one-way hash, so repeat visitors can still be counted but the IP can't be recovered. A copied `app.db` or backup reveals neither. Rows logged before encryption was added are encrypted automatically at startup. A bad key stops the app at startup rather than failing on the first message.
 - **Knowledge-base content is untrusted too.** Chunks can't close the `<context>` block (tags are neutralized), the scraper removes hidden-by-CSS text (a common indirect-injection trick), and zero-width characters are stripped on ingest.
 - **Scraper SSRF protection.** Only http(s); every redirect hop is re-resolved and rejected if it points at a private, loopback, link-local or metadata address; responses are size-capped.
 - **Uploads** are checked by extension and by file signature (a renamed `.exe` won't pass as `.pdf`), and read in 1 MB pieces so a 20 MB limit actually holds.
@@ -84,7 +140,7 @@ Each step is cheaper than the next, so most junk never costs a generation call.
 ```bash
 cd backend
 
-# 1. Offline suite: no API keys needed (LLM mocked, hash embedder). 56 tests.
+# 1. Offline suite: no API keys needed (LLM mocked, hash embedder). 99 tests.
 pytest -q
 
 # 2a. Live behaviour evaluation against a local dev server (uvicorn on :8000)
@@ -124,7 +180,7 @@ curl -s -o /dev/null -D- https://api.openai.com/v1/chat/completions \
   | grep -i x-ratelimit
 ```
 
-The offline suite checks chunking, cleaning, CSV handling, file validation, SSRF blocking, HTML sanitizing, injection and handoff detection, history normalization, prompt-boundary escaping and rate limiting. Through the real API it also checks that off-topic and jailbreak messages make **zero generation calls**, injection patterns make **zero calls of any kind**, below-threshold questions never reach the LLM, leaked prompt text gets replaced, admin auth is enforced, and deleting a source removes its chunks from retrieval.
+The offline suite checks chunking, cleaning, CSV handling, file validation, SSRF blocking, HTML sanitizing, injection and handoff detection, history normalization, prompt-boundary escaping, rate limiting, purchase-intent and keyword link matching, link URL safety, and log encryption (round trip, wrong key, IP hashing, encrypting old plaintext rows). Through the real API it also checks that replies to purchase questions carry the order link while refusals and handoffs carry none, that no question is stored in plaintext, and that off-topic and jailbreak messages make **zero generation calls**, injection patterns make **zero calls of any kind**, below-threshold questions never reach the LLM, leaked prompt text gets replaced, admin auth is enforced, and deleting a source removes its chunks from retrieval.
 
 The live evaluation runs four groups and exits non-zero on any failure:
 
@@ -144,7 +200,7 @@ The live evaluation runs four groups and exits non-zero on any failure:
 | GET | `/api/sources` | admin | |
 | DELETE | `/api/sources/{id}` | admin | |
 | GET / PUT | `/api/settings` | GET public, PUT admin | |
-| GET | `/api/logs?classification=no_answer` | admin | question log |
+| GET | `/api/logs?classification=no_answer` | admin | question log (decrypted), plus `encryption.key_source` (`env` or `file`) |
 | GET | `/api/meta`, `/api/health` | public | |
 
 Admin requests send `X-Admin-Token`.
@@ -156,3 +212,5 @@ Admin requests send `X-Admin-Token`.
 - **DNS rebinding.** The scraper checks resolved IPs before connecting, but a hostile DNS server could change the answer between check and connect. Scraping is admin-only, which keeps the risk low.
 - **JavaScript-rendered pages** scrape as empty. Paste the text or upload a file instead.
 - Ingestion runs inside the request. Very large PDFs may take a while; a job queue would be the next step.
+- **Generated encryption key.** Without `LOG_ENCRYPTION_KEY`, the key is written to `DATA_DIR/log_encryption.key`, next to the database. That protects a copied `app.db` but not a copy of the whole data folder. Set the variable (ideally from a secrets manager) for real deployments, and keep a copy of the key: losing it makes old log entries unreadable.
+- **Link matching is keyword-based.** It's predictable and free, but it can miss unusual phrasings or add a loosely related link. The sample website's menu and policies are hard-coded to match `sample_data/`, so update both together.

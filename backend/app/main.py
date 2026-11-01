@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
-from . import db, rag, settings_store
+from . import db, links, log_crypto, rag, settings_store
 from .config import config
 from .ingestion import ALLOWED_EXTENSIONS, IngestionError, extract_file
 from .rate_limit import RateLimiter
@@ -80,6 +80,32 @@ class UrlSource(BaseModel):
     url: str = Field(min_length=8, max_length=2048)
 
 
+def _check_url(url: str) -> str:
+    url = url.strip()
+    if not links.is_safe_url(url):
+        raise ValueError("Links must start with https://, http:// or / (a page on this site).")
+    return url
+
+
+class QuickLink(BaseModel):
+    label: str = Field(min_length=1, max_length=60)
+    url: str = Field(min_length=1, max_length=500)
+    keywords: list[str] = Field(min_length=1, max_length=30)
+
+    @field_validator("url")
+    @classmethod
+    def _check_link_url(cls, v: str) -> str:
+        return _check_url(v)
+
+    @field_validator("keywords")
+    @classmethod
+    def _clean_keywords(cls, v: list[str]) -> list[str]:
+        words = [k.strip().lower()[:40] for k in v if k and k.strip()]
+        if not words:
+            raise ValueError("Each link needs at least one keyword.")
+        return list(dict.fromkeys(words))
+
+
 class SettingsModel(BaseModel):
     company_name: str = Field(min_length=1, max_length=120)
     bot_name: str = Field(min_length=1, max_length=60)
@@ -87,6 +113,9 @@ class SettingsModel(BaseModel):
     support_contact: str = Field(min_length=3, max_length=200)
     refusal_message: str = Field(min_length=5, max_length=600)
     relevance_threshold: float = Field(ge=0.0, le=1.0)
+    # Optional so a client that doesn't send them keeps the saved links (None = unchanged)
+    order_url: Optional[str] = Field(default=None, max_length=500)
+    quick_links: Optional[list[QuickLink]] = Field(default=None, max_length=20)
 
     @field_validator("allowed_topics")
     @classmethod
@@ -95,6 +124,13 @@ class SettingsModel(BaseModel):
         if not topics:
             raise ValueError("Add at least one topic.")
         return list(dict.fromkeys(topics))
+
+    @field_validator("order_url")
+    @classmethod
+    def _check_order_url(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        return _check_url(v) if v.strip() else ""  # empty turns the order link off
 
 
 # ---------- chat ----------
@@ -167,13 +203,14 @@ def get_settings():
 
 @app.put("/api/settings", dependencies=[Depends(require_admin)])
 def put_settings(body: SettingsModel):
-    return settings_store.update(body.model_dump())
+    return settings_store.update(body.model_dump(exclude_none=True))
 
 
 @app.get("/api/logs", dependencies=[Depends(require_admin)])
 def get_logs(limit: int = Query(100, ge=1, le=1000),
              classification: Optional[str] = Query(None, max_length=30)):
-    return {"summary": db.log_summary(), "items": db.list_logs(limit, classification)}
+    return {"summary": db.log_summary(), "items": db.list_logs(limit, classification),
+            "encryption": {"key_source": log_crypto.key_source()}}
 
 
 @app.get("/api/meta")

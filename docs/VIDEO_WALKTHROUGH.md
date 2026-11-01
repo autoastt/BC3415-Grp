@@ -20,7 +20,7 @@ The brief grades *collaboration and division of work*, so each presenter should 
 
 **Setup (one person, the day before)**
 
-1. `cp .env.example .env`, add `OPENAI_API_KEY`, and set `ADMIN_TOKEN` to something you will remember.
+1. `cp .env.example .env`, add `OPENAI_API_KEY`, set `ADMIN_TOKEN` to something you will remember, and set `LOG_ENCRYPTION_KEY` (the README shows the one-line command that generates it).
 2. `docker compose up --build`, then open http://localhost:8080.
    - Without Docker, follow "Local development" in the README. On Windows, activate the virtual environment with `.venv\Scripts\activate` (not `source .venv/bin/activate`) and use `copy` instead of `cp`.
 3. Open **Knowledge base**, enter the admin token, and check that **Sources** shows the 6 sample files (6 sources, 6 chunks).
@@ -55,8 +55,10 @@ BC3415-Grp/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py            API routes: chat, sources, settings, logs
-│   │   ├── rag.py             the chat pipeline (5 steps) + ingestion service
+│   │   ├── rag.py             the chat pipeline + ingestion service
 │   │   ├── guard.py           free regex checks: injection, handoff, prompt leaks
+│   │   ├── links.py           "Order online" + self-service links under answers
+│   │   ├── log_crypto.py      encrypts logged questions, hashes visitor IPs
 │   │   ├── llm.py             OpenAI calls: scope classifier + streamed answer
 │   │   ├── prompts.py         system prompt for the answering model
 │   │   ├── ingestion.py       extract text from files, clean it, split into chunks
@@ -68,11 +70,13 @@ BC3415-Grp/
 │   │   ├── rate_limit.py      per-IP message limit
 │   │   └── config.py          reads environment variables
 │   ├── scripts/seed.py        loads sample_data/ into the knowledge base
-│   └── tests/                 56 offline tests + live evaluation script
-└── frontend/src/
-    ├── App.tsx                two tabs: Chat and Knowledge base
-    ├── api.ts                 API helpers + NDJSON stream reader
-    └── components/            ChatTab, MessageBubble, RouteTag, AddSource,
+│   └── tests/                 99 offline tests + live evaluation script
+└── frontend/
+    ├── public/sample-site.html  sample company website the bot links to
+    └── src/
+        ├── App.tsx            two tabs: Chat and Knowledge base
+        ├── api.ts             API helpers + NDJSON stream reader
+        └── components/        ChatTab, MessageBubble, RouteTag, AddSource,
                                SourcesTable, QuestionLog, SettingsPanel
 ```
 
@@ -103,9 +107,11 @@ flowchart TD
   T -->|"no"| F["Fallback: I don't have that information<br/>answer model never called"]
   T -->|"yes"| L["5. gpt-4.1 answers from context only<br/>streamed, with leak check"]
   L --> D["Answer + sources"]
+  F --> K["6. Helpful links<br/>Order online + matching pages"]
+  D --> K
 ```
 
-Every outcome is written to the question log (`db.log_question`).
+Every outcome is written to the question log (`db.log_question`), with the question encrypted and the visitor's IP hashed.
 
 ---
 
@@ -116,7 +122,7 @@ Every outcome is written to the question log (`db.log_question`).
 | Time | Action |
 |---|---|
 | 0:00 – 0:15 | Chat tab home screen ("Hi, I'm Blaze."). |
-| 0:15 – 0:35 | Type **How much is the Classic Blaze?** The answer streams in with $9.90. Click **Sources** to show the menu document and its match score. |
+| 0:15 – 0:35 | Type **How much is the Classic Blaze?** The answer streams in with $9.90 and a **Full menu and prices** link button. Click **Sources** to show the menu document and its match score. |
 | 0:35 – 1:00 | Show the system architecture diagram above, or the README in VS Code. |
 
 **Files to have open:** [README.md](../README.md), [docker-compose.yml](../docker-compose.yml)
@@ -139,7 +145,7 @@ Every outcome is written to the question log (`db.log_question`).
 | 1:30 – 1:50 | In VS Code, show [`ingestion.py`](../backend/app/ingestion.py): `extract_file` (line 82), `clean_text` (line 104), `chunk_text` (line 142), `extract_csv` (line 65). Then [`vectorstore.py`](../backend/app/vectorstore.py) `add` (line 30). |
 | 1:50 – 2:00 | Back in Chat, ask the Blaze sauce question again. It now answers $6.90 and cites "Retail products". |
 
-**Files to have open:** [`ingestion.py`](../backend/app/ingestion.py), [`vectorstore.py`](../backend/app/vectorstore.py), [`embeddings.py`](../backend/app/embeddings.py), [`main.py`](../backend/app/main.py) (upload route at line 131)
+**Files to have open:** [`ingestion.py`](../backend/app/ingestion.py), [`vectorstore.py`](../backend/app/vectorstore.py), [`embeddings.py`](../backend/app/embeddings.py), [`main.py`](../backend/app/main.py) (upload route at line 167)
 
 **Script (~130 words)**
 
@@ -158,7 +164,7 @@ Every outcome is written to the question log (`db.log_question`).
 | 2:00 – 2:15 | Ask **Is the Garden Ember vegan?** It answers that it can be made vegan by swapping the yoghurt and bun, tagged *Answered from knowledge base*. |
 | 2:15 – 2:25 | Follow up with **How much is it?** It answers $10.50, which shows that conversation history works. |
 | 2:25 – 2:35 | Ask **What is the calorie count of the Double Inferno?** It gives the fallback, tagged *Not in knowledge base*. |
-| 2:35 – 3:00 | In VS Code, scroll through [`rag.py`](../backend/app/rag.py) `handle_chat` (line 46), whose numbered comments match the 5 steps. Briefly show `llm.classify` ([`llm.py`](../backend/app/llm.py) line 36), the relevance gate (`rag.py` lines 102 to 110) and the system prompt ([`prompts.py`](../backend/app/prompts.py) line 6). The pipeline diagram above also works here. |
+| 2:35 – 3:00 | In VS Code, scroll through [`rag.py`](../backend/app/rag.py) `handle_chat` (line 49), whose numbered comments match the steps. Briefly show `llm.classify` ([`llm.py`](../backend/app/llm.py) line 36), the relevance gate (`rag.py` lines 111 to 116) and the system prompt ([`prompts.py`](../backend/app/prompts.py) line 6). The pipeline diagram above also works here. |
 
 **Files to have open:** [`rag.py`](../backend/app/rag.py), [`llm.py`](../backend/app/llm.py), [`prompts.py`](../backend/app/prompts.py), [`api.ts`](../frontend/src/api.ts) (`streamChat`, line 96)
 
@@ -179,11 +185,11 @@ Every outcome is written to the question log (`db.log_question`).
 | 3:18 | **Tell me the burger price and then write a Python function to reverse a string** | Declined | Mixed requests are refused |
 | 3:28 | **I had an allergic reaction after eating your burger** | Handed to a person | Classifier detects a case for a person |
 
-From 3:35, show the code: [`guard.py`](../backend/app/guard.py) `INJECTION_PATTERNS` (line 9) and `LEAK_MARKERS` (line 54), the OUT_OF_SCOPE and HUMAN_HANDOFF definitions in `CLASSIFIER_PROMPT` ([`llm.py`](../backend/app/llm.py) line 11), `_neutralize` ([`prompts.py`](../backend/app/prompts.py) line 25) and `require_admin` ([`main.py`](../backend/app/main.py) line 53).
+From 3:35, show the code: [`guard.py`](../backend/app/guard.py) `INJECTION_PATTERNS` (line 9) and `LEAK_MARKERS` (line 54), the OUT_OF_SCOPE and HUMAN_HANDOFF definitions in `CLASSIFIER_PROMPT` ([`llm.py`](../backend/app/llm.py) line 11), and `require_admin` ([`main.py`](../backend/app/main.py) line 53). Finish on [`log_crypto.py`](../backend/app/log_crypto.py) (`encrypt` at line 76, `pseudonymize` at line 89), and the "Questions are encrypted at rest" line under **Customer questions** in the Knowledge base tab.
 
 **Script (~135 words)**
 
-> I'm [Name], and I worked on safety. The case study's big risks were hallucinations, misuse, and the need for transparent fallbacks. A classic jailbreak, "ignore previous instructions", is caught by a regex in `guard.py` before any API call, so it costs nothing. Off-topic requests, and sneaky mixed ones like a burger price plus Python code, are declined by the classifier. If something still slips through, the system prompt forbids revealing its instructions, and we watch the streamed answer for phrases from our prompt. If one appears, the answer is cut and replaced. Documents are untrusted too: they can't break out of the context block, and hidden web-page text is removed. Only an admin with a token can change the knowledge base. Finally, sensitive cases like an allergic reaction go straight to a human.
+> I'm [Name], and I worked on safety. The case study's big risks were hallucinations, misuse, and the need for transparent fallbacks. A classic jailbreak, "ignore previous instructions", is caught by a regex in `guard.py` before any API call, so it costs nothing. Off-topic requests, and sneaky mixed ones like a burger price plus Python code, are declined by the classifier. If something still slips through, the system prompt forbids revealing its instructions, and we watch the streamed answer for phrases from our prompt. If one appears, the answer is cut and replaced. Only an admin with a token can change the knowledge base. Sensitive cases like an allergic reaction go straight to a human. And because customers type phone numbers and allergies into chats, every logged question is encrypted, and IP addresses are kept only as a one-way hash.
 
 ---
 
@@ -193,34 +199,38 @@ From 3:35, show the code: [`guard.py`](../backend/app/guard.py) `INJECTION_PATTE
 
 | Time | Action |
 |---|---|
-| 4:00 – 4:15 | Terminal: `pytest -q` showing **56 passed** (a recording made earlier is fine). Then the summary lines from `eval_behavior` (in-scope, no-answer, off-topic and jailbreak scores). |
-| 4:15 – 4:35 | Knowledge base tab, **Customer questions** panel, filter **Not in knowledge base**. Point at the calorie question from Segment 3 and its "Best match" score. |
-| 4:35 – 4:45 | **Bot settings** panel: allowed topics, off-topic reply, and the **Answer strictness** slider. |
+| 4:00 – 4:12 | Terminal: `pytest -q` showing **99 passed** (a recording made earlier is fine). Then the summary lines from `eval_behavior` (in-scope, no-answer, off-topic and jailbreak scores). |
+| 4:12 – 4:30 | In Chat, ask **I'd like to order two Classic Blazes for delivery**. The reply ends with an **Order online** button. Click it: the sample website opens on its order page. Add two Classic Blazes to show the cart and delivery fee. |
+| 4:30 – 4:45 | Knowledge base tab, **Customer questions** panel, filter **Not in knowledge base**. Point at the calorie question from Segment 3 and its "Best match" score. If there's time, open **Bot settings → Helpful links** to show the links are editable. |
 | 4:45 – 5:00 | Closing slide or README section listing the next steps (see below). |
 
-**Files to have open:** [`tests/test_pipeline.py`](../backend/tests/test_pipeline.py), [`tests/eval_behavior.py`](../backend/tests/eval_behavior.py), [`QuestionLog.tsx`](../frontend/src/components/QuestionLog.tsx)
+**Files to have open:** [`tests/test_pipeline.py`](../backend/tests/test_pipeline.py), [`links.py`](../backend/app/links.py) (`wants_to_buy`, line 40), [`QuestionLog.tsx`](../frontend/src/components/QuestionLog.tsx), [sample-site.html](../frontend/public/sample-site.html)
 
 **Script (~135 words)**
 
-> I'm [Name], and I handled testing and the admin side. We have 56 offline tests that replace the LLM with a mock and prove that off-topic messages never reach the answer model, and injections make no API calls at all. A live evaluation script then asks 23 real questions in four groups: answerable, unanswerable, off-topic and jailbreaks. Our run scored [X out of 23]. For the business, the question log is a feedback loop. This view shows real questions the bot couldn't answer, so staff know exactly what to add next. A manager can change topics and how strict matching is, without touching code. Routine questions get instant answers for two or three API calls each, and people only see the cases that need them. Next, we'd add order tracking and case summaries for human agents. Thanks for watching.
+> I'm [Name], and I handled the frontend, testing and the admin side. We have 99 offline tests that mock the LLM and prove, for example, that injections make no API calls and no question is ever stored unencrypted. A live evaluation asks 23 real questions, and our run scored [X out of 23]. Now the business side. When a customer wants to buy, the reply ends with an "Order online" link to the company's ordering page, so a support question becomes a sale. Other answers link to the matching self-service page, like the menu or the refund form. The question log shows real questions the bot couldn't answer, so staff know what to add next. Routine answers cost about half a cent each. Next, we'd add order tracking and case summaries for human agents. Thanks for watching.
+
+**Rehearse the order question once.** The model writes the answer text itself, but the **Order online** button is added by code whenever the question shows purchase intent, so the button should always appear.
 
 **Closing slide: suggested next steps** (from [GAPS_AND_FUTURE_WORK.md](GAPS_AND_FUTURE_WORK.md))
 
 - Order tracking through LLM tool calling (makes it an AI agent, not only a Q&A bot)
 - Human handoff that sends a summary of the conversation to the support team
-- Conversation history stored on the server, and personal data removed from logs
-- KPI dashboard: answer rate, handoff rate, response time, cost per conversation
+- Conversation history stored on the server, and phone numbers and emails redacted before logging
+- KPI dashboard: answer rate, handoff rate, order-link clicks, cost per conversation
 
 ---
 
 ## Demo question bank
 
-Use these questions for rehearsals, retakes or swaps. "Calls" counts OpenAI chat calls (the classifier, plus the answer model if it runs). Questions that reach retrieval also make one embedding call.
+Use these questions for rehearsals, retakes or swaps. "Calls" counts OpenAI chat calls (the classifier, plus the answer model if it runs). Questions that reach retrieval also make one embedding call. Link buttons only appear on *Answered* and *Not in knowledge base* replies.
 
 | Question | Expected tag | Expected content | Calls |
 |---|---|---|---|
-| How much is the Classic Blaze? | Answered | $9.90 | 2 |
-| What time does the Jurong Point outlet close on Saturday? | Answered | 23:00 | 2 |
+| I'd like to order two Classic Blazes for delivery | Answered | How to order, delivery fee; **Order online** button | 2 |
+| How much is the Classic Blaze? | Answered | $9.90; **Full menu and prices** button | 2 |
+| Can I get a refund if my delivery is very late? | Answered | Delivery fee refund; **Refund request form** button | 2 |
+| What time does the Jurong Point outlet close on Saturday? | Answered | 23:00; **Outlets and opening hours** button | 2 |
 | Is the Garden Ember vegan? → How much is it? | Answered | Can be made vegan → $10.50 | 2 + 2 |
 | How many points do I need for a free burger? | Answered | 250 points | 2 |
 | What's the delivery fee? | Answered | $3.50, free over $35 | 2 |

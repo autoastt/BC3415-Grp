@@ -6,6 +6,7 @@ Chat order (cheapest first, so most junk never costs a generation call):
   3. Retrieval          embedding top-k chunks
   4. Relevance gate     free      below threshold -> fallback, no LLM
   5. Generation         OpenAI    streamed, with output leak check
+  6. Helpful links      free      admin-set links matched to the question (answers and fallbacks only)
 """
 from __future__ import annotations
 
@@ -13,7 +14,7 @@ import logging
 import uuid
 from typing import Any, Iterator
 
-from . import db, guard, llm, settings_store
+from . import db, guard, links, llm, settings_store
 from .config import config
 from .ingestion import IngestionError, chunk_text, clean_text
 from .vectorstore import get_store
@@ -23,9 +24,11 @@ log = logging.getLogger("rag")
 FALLBACK_SIGNATURE = "i don't have that information right now"
 
 
-def _canned(text: str, classification: str, *, handoff: bool = False) -> Iterator[dict]:
+def _canned(text: str, classification: str, *, handoff: bool = False,
+            links: list[dict] | None = None) -> Iterator[dict]:
     yield {"type": "token", "text": text}
-    yield {"type": "done", "classification": classification, "sources": [], "handoff": handoff}
+    yield {"type": "done", "classification": classification, "sources": [], "handoff": handoff,
+           "links": links or []}
 
 
 def _retrieval_query(message: str, history: list[dict[str, str]]) -> str:
@@ -102,10 +105,13 @@ def handle_chat(message: str, history: list[dict[str, Any]], client_id: str | No
     threshold = float(s.get("relevance_threshold", config.default_relevance_threshold))
     top = hits[0]["score"] if hits else 0.0
 
+    # Links only go on answers and "don't know" fallbacks, never on refusals or handoffs
+    helpful = links.links_for(msg, s)
+
     # 4. Relevance gate: no LLM call when nothing relevant exists
     if top < threshold:
         record("no_answer", "below_threshold", top)
-        yield from _canned(fallback, "no_answer", handoff=True)
+        yield from _canned(fallback, "no_answer", handoff=True, links=helpful)
         return
     relevant = [h for h in hits if h["score"] >= threshold]
 
@@ -118,7 +124,8 @@ def handle_chat(message: str, history: list[dict[str, Any]], client_id: str | No
             if guard.leaks_prompt(answer):
                 record("out_of_scope", "output_leak_blocked", top)
                 yield {"type": "replace", "text": refusal}
-                yield {"type": "done", "classification": "out_of_scope", "sources": [], "handoff": False}
+                yield {"type": "done", "classification": "out_of_scope", "sources": [], "handoff": False,
+                       "links": []}
                 return
             yield {"type": "token", "text": piece}
     except Exception:
@@ -130,13 +137,16 @@ def handle_chat(message: str, history: list[dict[str, Any]], client_id: str | No
     lowered = answer.lower()
     if FALLBACK_SIGNATURE in lowered:  # model judged the retrieved text insufficient
         record("no_answer", "model_fallback", top)
-        yield {"type": "done", "classification": "no_answer", "sources": [], "handoff": True}
+        yield {"type": "done", "classification": "no_answer", "sources": [], "handoff": True,
+               "links": helpful}
     elif refusal.lower()[:60] in lowered:
         record("out_of_scope", "model_refusal", top)
-        yield {"type": "done", "classification": "out_of_scope", "sources": [], "handoff": False}
+        yield {"type": "done", "classification": "out_of_scope", "sources": [], "handoff": False,
+               "links": []}
     else:
         record("in_scope", None, top)
-        yield {"type": "done", "classification": "in_scope", "sources": _source_payload(relevant), "handoff": False}
+        yield {"type": "done", "classification": "in_scope", "sources": _source_payload(relevant),
+               "handoff": False, "links": helpful}
 
 
 def build_system(s: dict, hits: list[dict], refusal: str) -> str:
