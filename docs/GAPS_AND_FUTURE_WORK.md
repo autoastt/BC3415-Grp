@@ -52,7 +52,7 @@ ScopeGuard is a well-engineered prototype. The RAG pipeline, the cost-ordered gu
 | Criterion | Assessment |
 |---|---|
 | Problem relevance and originality | A restaurant chain is a reasonable but generic choice. The README now explains the problem and the business value; the "Order online" link also gives a revenue angle, not only a cost-saving one. The project folder is named *AIAccounting*: if the module expects a finance or accounting angle, frame the business value in cost terms (cost per conversation, staff hours saved), or consider re-targeting ([3.8](#38-re-target-to-another-industry)). |
-| Technical design and implementation | Strong. Clear module boundaries, cost-ordered pipeline, defensive input handling, 99 tests. |
+| Technical design and implementation | Strong. Clear module boundaries, cost-ordered pipeline, defensive input handling, 110 tests. |
 | Effectiveness of the AI in solving the problem | Hard for a marker to judge. No evaluation results are recorded in the repo. Run `eval_behavior.py` and put the scores in the README and the video. |
 | Creativity and integration of RAG/GenAI | Good: a cheap classifier as gatekeeper, a relevance gate before generation, a stream leak check, and the question log as a feedback loop. Adding tools ([3.2](#32-make-it-an-ai-agent-order-tracking-with-tool-calling)) and case summaries ([3.3](#33-human-handoff-with-a-case-summary)) would make it stand out more. |
 | Collaboration and division of work | **Weak evidence.** `git log` shows 2 commits (`init`, `change to openai model`), both from one account (`autoastt`). Markers who open the GitHub repo will see one contributor. The README now has a "Team and roles" table (fill in the names). Have each member commit their own future-work item. |

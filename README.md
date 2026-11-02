@@ -118,7 +118,7 @@ Each step is cheaper than the next, so most junk never costs a generation call.
 4. **Relevance gate.** If the best score is under the threshold, the bot returns the fallback message and the LLM is never called. Only chunks above the threshold are passed on, so weak matches can't seed a hallucination.
 5. **Generation.** The answering model receives the spec's system prompt verbatim, with chunks inside `<context>`. The stream is watched for distinctive phrases from the system prompt; if any appear, output is cut and replaced with the refusal.
 6. **Helpful links (free).** Answers and "don't know" fallbacks get up to 3 links, never refusals or handoffs. If the customer wants to buy something ("I'd like two Classic Blazes", "how do I order?") or asks about delivery, the first link is **Order online**. Other links are matched by keyword (a price question gets "Full menu and prices"; a refund question gets "Refund request form"). Admins edit the links under **Bot settings → Helpful links**. By default they point at the bundled sample website.
-7. **Logging.** Every question is logged as `in_scope`, `out_of_scope`, `no_answer`, `greeting`, `handoff` or `error`, with the reason and best match score. The question text is encrypted and the visitor's IP is stored only as a keyed hash. If the model itself replies with the fallback sentence, that is logged as `no_answer` and no sources are shown.
+7. **Logging.** Every question is logged as `in_scope`, `out_of_scope`, `no_answer`, `greeting`, `handoff` or `error`, with the reason and best match score. The question text is encrypted and the visitor's IP is stored only as a keyed hash. If the model itself replies with the fallback or the refusal, that is logged as `no_answer` or `out_of_scope` and no sources are shown. This works in any language: a second system message asks the model to start those replies with `[NO_ANSWER]` or `[REFUSED]`, and the server strips the marker before the customer sees it. The English sentences are still checked in case the model forgets the marker.
 
 **Human handoff** happens on explicit requests, and when the classifier sees something a person should handle (allergic reaction, food safety, payment disputes, strong frustration). The bot shares the support contact and doesn't try to resolve it.
 
@@ -140,7 +140,7 @@ Each step is cheaper than the next, so most junk never costs a generation call.
 ```bash
 cd backend
 
-# 1. Offline suite: no API keys needed (LLM mocked, hash embedder). 99 tests.
+# 1. Offline suite: no API keys needed (LLM mocked, hash embedder). 110 tests.
 pytest -q
 
 # 2a. Live behaviour evaluation against a local dev server (uvicorn on :8000)
@@ -180,7 +180,7 @@ curl -s -o /dev/null -D- https://api.openai.com/v1/chat/completions \
   | grep -i x-ratelimit
 ```
 
-The offline suite checks chunking, cleaning, CSV handling, file validation, SSRF blocking, HTML sanitizing, injection and handoff detection, history normalization, prompt-boundary escaping, rate limiting, purchase-intent and keyword link matching, link URL safety, and log encryption (round trip, wrong key, IP hashing, encrypting old plaintext rows). Through the real API it also checks that replies to purchase questions carry the order link while refusals and handoffs carry none, that no question is stored in plaintext, and that off-topic and jailbreak messages make **zero generation calls**, injection patterns make **zero calls of any kind**, below-threshold questions never reach the LLM, leaked prompt text gets replaced, admin auth is enforced, and deleting a source removes its chunks from retrieval.
+The offline suite checks chunking, cleaning, CSV handling, file validation, SSRF blocking, HTML sanitizing, injection and handoff detection, history normalization, reply-marker stripping, prompt-boundary escaping, rate limiting, purchase-intent and keyword link matching, link URL safety, and log encryption (round trip, wrong key, IP hashing, encrypting old plaintext rows). Through the real API it also checks that replies to purchase questions carry the order link while refusals and handoffs carry none, that no question is stored in plaintext, and that off-topic and jailbreak messages make **zero generation calls**, injection patterns make **zero calls of any kind**, below-threshold questions never reach the LLM, leaked prompt text gets replaced, translated fallbacks and refusals are logged correctly, admin auth is enforced, and deleting a source removes its chunks from retrieval.
 
 The live evaluation runs four groups and exits non-zero on any failure:
 
