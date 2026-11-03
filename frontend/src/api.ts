@@ -1,4 +1,4 @@
-import type { KBSource, LogResponse, Meta, Settings, StreamEvent } from "./types";
+import type { KBSource, KBSourceDetail, LogResponse, Meta, Settings, StreamEvent } from "./types";
 
 const BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "";
 const TOKEN_KEY = "scopeguard-admin-token";
@@ -62,6 +62,9 @@ export const api = {
   addText: (title: string, content: string) =>
     request<KBSource>("/api/sources/text", { method: "POST", ...json({ title, content }) }),
   addUrl: (url: string) => request<KBSource>("/api/sources/url", { method: "POST", ...json({ url }) }),
+  getSource: (id: string) => request<KBSourceDetail>(`/api/sources/${id}`),
+  updateSource: (id: string, content: string) =>
+    request<KBSource>(`/api/sources/${id}`, { method: "PUT", ...json({ content }) }),
   deleteSource: (id: string) => request<{ deleted: string }>(`/api/sources/${id}`, { method: "DELETE" }),
   logs: (classification?: string) =>
     request<LogResponse>(`/api/logs?limit=100${classification ? `&classification=${classification}` : ""}`),

@@ -64,7 +64,8 @@ export default function KnowledgeBaseTab({ meta, settings, onSettingsSaved, acti
         <AddSource maxMb={meta?.max_upload_mb ?? 20} onAdded={(s) => setSources((xs) => [s, ...xs])} />
         {error && <p role="alert" className="rounded-md bg-brick-soft px-3 py-2 text-sm text-brick">{error}</p>}
         <SourcesTable sources={sources} loading={loading}
-          onDeleted={(id) => setSources((xs) => xs.filter((x) => x.id !== id))} />
+          onDeleted={(id) => setSources((xs) => xs.filter((x) => x.id !== id))}
+          onUpdated={(s) => setSources((xs) => xs.map((x) => (x.id === s.id ? s : x)))} />
         <QuestionLog refreshKey={refreshKey} />
       </div>
       <div className="min-w-0 lg:sticky lg:top-6 lg:self-start">

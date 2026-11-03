@@ -164,21 +164,37 @@ def _handoff_text(s: dict) -> str:
 
 # ---------- ingestion service ----------
 
-def ingest(title: str, type_: str, raw_text: str, origin: str | None = None) -> dict:
+# Types whose saved text is the whole source, so editing it loses nothing.
+EDITABLE_TYPES = {"md", "txt", "text"}
+
+
+def _prepare(raw_text: str) -> tuple[str, list[str]]:
     text = clean_text(raw_text)
     if len(text) < 20:
         raise IngestionError("No usable text was found in this source.")
     chunks = chunk_text(text, config.chunk_tokens, config.chunk_overlap)
     if not chunks:
         raise IngestionError("No usable text was found in this source.")
+    return text, chunks
+
+
+def ingest(title: str, type_: str, raw_text: str, origin: str | None = None) -> dict:
+    text, chunks = _prepare(raw_text)
     source_id = uuid.uuid4().hex
     store = get_store()
     store.add(source_id, title, type_, chunks)
     try:
-        return db.insert_source(source_id, title, type_, origin, len(chunks))
+        return db.insert_source(source_id, title, type_, origin, len(chunks), text)
     except Exception:
         store.delete_source(source_id)  # keep Chroma and SQLite consistent
         raise
+
+
+def update_content(source: dict, raw_text: str) -> dict:
+    """Re-chunk and re-embed edited text. The caller checks the source is editable."""
+    text, chunks = _prepare(raw_text)
+    get_store().replace(source["id"], source["title"], source["type"], chunks)
+    return db.update_source_content(source["id"], text, len(chunks))
 
 
 def delete(source_id: str) -> bool:

@@ -27,14 +27,22 @@ class VectorStore:
             name=f"kb_{slug}", metadata={"hnsw:space": "cosine", "embedding_model": embedder.name}
         )
 
-    def add(self, source_id: str, title: str, type_: str, chunks: list[str]) -> None:
-        vectors = self.embedder.embed(chunks)
+    def add(self, source_id: str, title: str, type_: str, chunks: list[str],
+            vectors: list | None = None) -> None:
+        if vectors is None:
+            vectors = self.embedder.embed(chunks)
         ids = [f"{source_id}:{i}" for i in range(len(chunks))]
         metas = [{"source_id": source_id, "title": title, "type": type_, "chunk_index": i}
                  for i in range(len(chunks))]
         for i in range(0, len(chunks), 500):
             self._col.add(ids=ids[i:i + 500], embeddings=vectors[i:i + 500],
                           documents=chunks[i:i + 500], metadatas=metas[i:i + 500])
+
+    def replace(self, source_id: str, title: str, type_: str, chunks: list[str]) -> None:
+        """Swap a source's chunks. Embedding runs first, so if it fails the old chunks stay."""
+        vectors = self.embedder.embed(chunks)
+        self.delete_source(source_id)
+        self.add(source_id, title, type_, chunks, vectors)
 
     def delete_source(self, source_id: str) -> None:
         self._col.delete(where={"source_id": source_id})

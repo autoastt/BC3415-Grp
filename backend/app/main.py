@@ -76,6 +76,10 @@ class TextSource(BaseModel):
     content: str = Field(min_length=1, max_length=2_000_000)
 
 
+class SourceContent(BaseModel):
+    content: str = Field(min_length=1, max_length=2_000_000)
+
+
 class UrlSource(BaseModel):
     url: str = Field(min_length=8, max_length=2048)
 
@@ -185,6 +189,29 @@ def add_file(file: UploadFile = File(...)):
 def add_url(body: UrlSource):
     final_url, title, text = scrape(body.url)
     return rag.ingest(title[:200], "url", text, origin=final_url)
+
+
+@app.get("/api/sources/{source_id}", dependencies=[Depends(require_admin)])
+def get_source(source_id: str):
+    """Saved text of one source. content is null for sources added before text was kept."""
+    source = db.get_source(source_id, with_content=True)
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found.")
+    return {**source, "editable": source["type"] in rag.EDITABLE_TYPES and source["content"] is not None}
+
+
+@app.put("/api/sources/{source_id}", dependencies=[Depends(require_admin)])
+def update_source(source_id: str, body: SourceContent):
+    source = db.get_source(source_id, with_content=True)
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found.")
+    if source["type"] not in rag.EDITABLE_TYPES:
+        raise HTTPException(status_code=400,
+                            detail="Only Markdown, plain text and pasted text sources can be edited.")
+    if source["content"] is None:
+        raise HTTPException(status_code=400,
+                            detail="This source was added before its text was saved. Re-upload it to edit.")
+    return rag.update_content(source, body.content)
 
 
 @app.delete("/api/sources/{source_id}", dependencies=[Depends(require_admin)])

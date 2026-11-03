@@ -39,6 +39,13 @@ export interface KBSource {
   origin: string | null;
   chunk_count: number;
   created_at: string;
+  updated_at?: string | null;
+}
+
+/** One source with its saved text. content is null for sources added before text was kept. */
+export interface KBSourceDetail extends KBSource {
+  content: string | null;
+  editable: boolean;
 }
 
 export interface Settings {

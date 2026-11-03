@@ -70,10 +70,10 @@ export default function App() {
 
       <main className="min-h-0 flex-1">
         {/* Both tabs stay mounted so the chat survives a trip to the knowledge base */}
-        <div hidden={tab !== "chat"} className="h-full">
+        <div hidden={tab !== "chat"} className="relative h-full">
           <ChatTab settings={settings} maxChars={meta?.max_message_chars ?? 1000} />
         </div>
-        <div hidden={tab !== "kb"} className="h-full overflow-y-auto">
+        <div hidden={tab !== "kb"} className="relative h-full overflow-y-auto">
           <KnowledgeBaseTab meta={meta} settings={settings} onSettingsSaved={setSettings} active={tab === "kb"} />
         </div>
       </main>

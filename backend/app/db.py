@@ -51,8 +51,20 @@ def init() -> None:
             CREATE INDEX IF NOT EXISTS idx_log_class ON question_log(classification);
             """
         )
+    _add_source_columns()
     log_crypto.check()
     _encrypt_plaintext_rows()
+
+
+def _add_source_columns() -> None:
+    """Databases made before sources kept their text get the new columns added in place.
+    Old rows keep content NULL: their original text was never saved."""
+    with conn() as c:
+        have = {r["name"] for r in c.execute("PRAGMA table_info(sources)")}
+        if "content" not in have:
+            c.execute("ALTER TABLE sources ADD COLUMN content TEXT")
+        if "updated_at" not in have:
+            c.execute("ALTER TABLE sources ADD COLUMN updated_at TEXT")
 
 
 def _encrypt_plaintext_rows() -> None:
@@ -72,25 +84,39 @@ def now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def insert_source(source_id: str, title: str, type_: str, origin: str | None, chunk_count: int) -> dict:
+# Listing leaves out content so the sources table response stays small.
+_SUMMARY_COLS = "id,title,type,origin,chunk_count,created_at,updated_at"
+
+
+def insert_source(source_id: str, title: str, type_: str, origin: str | None, chunk_count: int,
+                  content: str) -> dict:
     row = {"id": source_id, "title": title, "type": type_, "origin": origin,
-           "chunk_count": chunk_count, "created_at": now()}
+           "chunk_count": chunk_count, "created_at": now(), "content": content}
     with conn() as c:
         c.execute(
-            "INSERT INTO sources (id,title,type,origin,chunk_count,created_at) "
-            "VALUES (:id,:title,:type,:origin,:chunk_count,:created_at)", row)
-    return row
+            "INSERT INTO sources (id,title,type,origin,chunk_count,created_at,content) "
+            "VALUES (:id,:title,:type,:origin,:chunk_count,:created_at,:content)", row)
+    row.pop("content")
+    return {**row, "updated_at": None}
 
 
 def list_sources() -> list[dict]:
     with conn() as c:
-        return [dict(r) for r in c.execute("SELECT * FROM sources ORDER BY created_at DESC")]
+        return [dict(r) for r in c.execute(f"SELECT {_SUMMARY_COLS} FROM sources ORDER BY created_at DESC")]
 
 
-def get_source(source_id: str) -> dict | None:
+def get_source(source_id: str, with_content: bool = False) -> dict | None:
+    cols = _SUMMARY_COLS + (",content" if with_content else "")
     with conn() as c:
-        r = c.execute("SELECT * FROM sources WHERE id=?", (source_id,)).fetchone()
+        r = c.execute(f"SELECT {cols} FROM sources WHERE id=?", (source_id,)).fetchone()
         return dict(r) if r else None
+
+
+def update_source_content(source_id: str, content: str, chunk_count: int) -> dict | None:
+    with conn() as c:
+        c.execute("UPDATE sources SET content=?, chunk_count=?, updated_at=? WHERE id=?",
+                  (content, chunk_count, now(), source_id))
+    return get_source(source_id)
 
 
 def delete_source(source_id: str) -> None:

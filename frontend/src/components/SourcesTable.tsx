@@ -1,14 +1,19 @@
 import { useState } from "react";
 import { api } from "../api";
 import type { KBSource } from "../types";
+import SourceViewer from "./SourceViewer";
+
+/** Matches EDITABLE_TYPES in backend/app/rag.py. */
+const EDITABLE = new Set(["md", "txt", "text"]);
 
 const TYPE_LABEL: Record<string, string> = {
   text: "Text", pdf: "PDF", docx: "Word", txt: "Plain text", md: "Markdown", csv: "CSV", url: "Web page",
 };
 
-export default function SourcesTable({ sources, loading, onDeleted }: {
-  sources: KBSource[]; loading: boolean; onDeleted: (id: string) => void;
+export default function SourcesTable({ sources, loading, onDeleted, onUpdated }: {
+  sources: KBSource[]; loading: boolean; onDeleted: (id: string) => void; onUpdated: (s: KBSource) => void;
 }) {
+  const [viewId, setViewId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -77,10 +82,16 @@ export default function SourcesTable({ sources, loading, onDeleted }: {
                       <button onClick={() => setConfirmId(null)} className="btn-ghost px-3 py-1">Keep</button>
                     </span>
                   ) : (
-                    <button onClick={() => setConfirmId(s.id)} className="btn-ghost px-3 py-1 hover:border-brick hover:text-brick"
-                      aria-label={`Delete ${s.title}`}>
-                      Delete
-                    </button>
+                    <span className="inline-flex gap-2">
+                      <button onClick={() => setViewId(s.id)} className="btn-ghost px-3 py-1"
+                        aria-label={`${EDITABLE.has(s.type) ? "View or edit" : "View"} ${s.title}`}>
+                        {EDITABLE.has(s.type) ? "View / Edit" : "View"}
+                      </button>
+                      <button onClick={() => setConfirmId(s.id)} className="btn-ghost px-3 py-1 hover:border-brick hover:text-brick"
+                        aria-label={`Delete ${s.title}`}>
+                        Delete
+                      </button>
+                    </span>
                   )}
                 </td>
               </tr>
@@ -88,6 +99,7 @@ export default function SourcesTable({ sources, loading, onDeleted }: {
           </tbody>
         </table>
       </div>
+      {viewId && <SourceViewer sourceId={viewId} onClose={() => setViewId(null)} onSaved={onUpdated} />}
     </section>
   );
 }

@@ -153,6 +153,55 @@ def test_delete_source_removes_chunks(client, spy):
     assert all(s["source_id"] != sid for s in done["sources"])
 
 
+# ---------- view and edit sources ----------
+
+def test_view_uploaded_source(client):
+    menu = next(s for s in client.get("/api/sources", headers=ADMIN).json() if s["origin"] == "menu.md")
+    assert "content" not in menu  # listing stays small
+    r = client.get(f"/api/sources/{menu['id']}", headers=ADMIN)
+    assert r.status_code == 200
+    body = r.json()
+    assert "Classic Blaze" in body["content"] and body["editable"] is True
+    assert client.get(f"/api/sources/{menu['id']}").status_code == 401
+    assert client.get("/api/sources/nope", headers=ADMIN).status_code == 404
+
+
+def test_edit_source_reindexes_chunks(client, spy):
+    r = client.post("/api/sources/file", headers=ADMIN, files={"file": (
+        "specials.txt", b"Tuesday special: the Ember Stack burger costs $7 all day.", "text/plain")})
+    sid = r.json()["id"]
+    new_text = "Tuesday special changed. The Frostbite Shake now costs $4 on Tuesdays only."
+    r = client.put(f"/api/sources/{sid}", headers=ADMIN, json={"content": new_text})
+    assert r.status_code == 200, r.text
+    assert r.json()["updated_at"] and r.json()["chunk_count"] >= 1
+    assert client.get(f"/api/sources/{sid}", headers=ADMIN).json()["content"] == new_text
+    _, done = chat(client, "Frostbite Shake Tuesday price")
+    assert any(s["source_id"] == sid for s in done["sources"])
+    assert all("Ember Stack" not in s.get("snippet", "") for s in done["sources"])
+    client.delete(f"/api/sources/{sid}", headers=ADMIN)
+
+
+def test_edit_rejects_non_text_types(client):
+    sid = client.post("/api/sources/file", headers=ADMIN, files={"file": (
+        "faq.csv", (SAMPLE / "faq.csv").read_bytes(), "text/csv")}).json()["id"]
+    assert client.get(f"/api/sources/{sid}", headers=ADMIN).json()["editable"] is False
+    r = client.put(f"/api/sources/{sid}", headers=ADMIN, json={"content": "some new text for the csv source"})
+    assert r.status_code == 400
+    client.delete(f"/api/sources/{sid}", headers=ADMIN)
+
+
+def test_old_sources_without_saved_text(client):
+    sid = client.post("/api/sources/text", headers=ADMIN,
+                      json={"title": "Legacy", "content": "An old source added before text was saved."}).json()["id"]
+    with sqlite3.connect(config.data_dir / "app.db") as c:
+        c.execute("UPDATE sources SET content=NULL WHERE id=?", (sid,))
+    body = client.get(f"/api/sources/{sid}", headers=ADMIN).json()
+    assert body["content"] is None and body["editable"] is False
+    r = client.put(f"/api/sources/{sid}", headers=ADMIN, json={"content": "replacement text that is long enough"})
+    assert r.status_code == 400
+    client.delete(f"/api/sources/{sid}", headers=ADMIN)
+
+
 # ---------- helpful links ----------
 
 def test_purchase_reply_includes_order_link(client, spy):
