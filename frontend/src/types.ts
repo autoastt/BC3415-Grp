@@ -9,6 +9,12 @@ export interface Source {
   snippet: string;
 }
 
+/** A link shown under an answer. URLs come from admin settings, never from the model. */
+export interface ReplyLink {
+  label: string;
+  url: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -17,12 +23,13 @@ export interface ChatMessage {
   classification?: Classification;
   sources?: Source[];
   handoff?: boolean;
+  links?: ReplyLink[];
 }
 
 export type StreamEvent =
   | { type: "token"; text: string }
   | { type: "replace"; text: string }
-  | { type: "done"; classification: Classification; sources: Source[]; handoff: boolean }
+  | { type: "done"; classification: Classification; sources: Source[]; handoff: boolean; links?: ReplyLink[] }
   | { type: "error"; message: string };
 
 export interface KBSource {
@@ -41,6 +48,15 @@ export interface Settings {
   support_contact: string;
   refusal_message: string;
   relevance_threshold: number;
+  /** Shown as "Order online" when a customer wants to buy something. Empty turns it off. */
+  order_url: string;
+  quick_links: QuickLinkSetting[];
+}
+
+export interface QuickLinkSetting {
+  label: string;
+  url: string;
+  keywords: string[];
 }
 
 export interface Meta {
@@ -62,4 +78,6 @@ export interface LogItem {
 export interface LogResponse {
   summary: Record<string, number>;
   items: LogItem[];
+  /** "env": key from LOG_ENCRYPTION_KEY. "file": key generated in the data directory. */
+  encryption?: { key_source: "env" | "file" };
 }

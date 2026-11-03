@@ -1,13 +1,17 @@
-"""SQLite for source metadata and the question log. Chunks live in ChromaDB."""
+"""SQLite for source metadata and the question log. Chunks live in ChromaDB.
+Questions in the log are encrypted and client IPs hashed (see log_crypto.py)."""
 from __future__ import annotations
 
+import logging
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Iterator
 
+from . import log_crypto
 from .config import config
 
+log = logging.getLogger("db")
 _DB = config.data_dir / "app.db"
 
 
@@ -47,6 +51,21 @@ def init() -> None:
             CREATE INDEX IF NOT EXISTS idx_log_class ON question_log(classification);
             """
         )
+    log_crypto.check()
+    _encrypt_plaintext_rows()
+
+
+def _encrypt_plaintext_rows() -> None:
+    """Rows logged before encryption was added are encrypted in place at startup."""
+    prefix = log_crypto.PREFIX
+    with conn() as c:
+        rows = c.execute("SELECT id, question, client FROM question_log WHERE substr(question, 1, ?) != ?",
+                         (len(prefix), prefix)).fetchall()
+        for r in rows:
+            c.execute("UPDATE question_log SET question=?, client=? WHERE id=?",
+                      (log_crypto.encrypt(r["question"]), log_crypto.pseudonymize(r["client"]), r["id"]))
+    if rows:
+        log.info("Encrypted %d question log row(s) written before log encryption was enabled.", len(rows))
 
 
 def now() -> str:
@@ -85,10 +104,12 @@ def log_question(question: str, classification: str, reason: str | None,
         c.execute(
             "INSERT INTO question_log (ts,question,classification,reason,top_score,client) "
             "VALUES (?,?,?,?,?,?)",
-            (now(), question[:2000], classification, reason, top_score, client))
+            (now(), log_crypto.encrypt(question[:2000]), classification, reason, top_score,
+             log_crypto.pseudonymize(client)))
 
 
 def list_logs(limit: int = 100, classification: str | None = None) -> list[dict]:
+    """Decrypts questions for the admin view (the endpoint is admin-only)."""
     q = "SELECT * FROM question_log"
     args: list = []
     if classification:
@@ -97,7 +118,10 @@ def list_logs(limit: int = 100, classification: str | None = None) -> list[dict]
     q += " ORDER BY id DESC LIMIT ?"
     args.append(limit)
     with conn() as c:
-        return [dict(r) for r in c.execute(q, args)]
+        rows = [dict(r) for r in c.execute(q, args)]
+    for r in rows:
+        r["question"] = log_crypto.decrypt(r["question"])
+    return rows
 
 
 def log_summary() -> dict[str, int]:

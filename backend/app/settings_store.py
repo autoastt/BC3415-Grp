@@ -23,6 +23,28 @@ DEFAULTS: dict[str, Any] = {
         "orders, store hours and refunds. What can I help you with today?"
     ),
     "relevance_threshold": config.default_relevance_threshold,
+    # Links point at the bundled demo site (frontend/public/sample-site.html).
+    # A real deployment replaces them with the company's own pages.
+    "order_url": "/sample-site.html#order",
+    "quick_links": [
+        {"label": "Full menu and prices", "url": "/sample-site.html#menu",
+         "keywords": ["menu", "price", "cost", "how much", "burger", "fries", "side", "drink",
+                      "milkshake", "kids meal", "add-on", "meal upgrade"]},
+        {"label": "Outlets and opening hours", "url": "/sample-site.html#locations",
+         "keywords": ["hours", "open", "opening", "close", "closing", "outlet", "location", "address",
+                      "directions", "parking", "nearest", "closest", "public holiday", "last order"]},
+        {"label": "Blaze Rewards and promotions", "url": "/sample-site.html#rewards",
+         "keywords": ["points", "loyalty", "reward", "birthday", "member", "promotion", "promo", "deal",
+                      "discount", "student", "two-for-one", "tuesday"]},
+        {"label": "Allergen and dietary guide", "url": "/sample-site.html#allergens",
+         "keywords": ["allergen", "allergy", "allergies", "gluten", "halal", "vegan", "vegetarian",
+                      "peanut", "nut", "dairy", "egg", "sesame"]},
+        {"label": "Gift cards", "url": "/sample-site.html#gift-cards",
+         "keywords": ["gift card", "voucher"]},
+        {"label": "Refund request form", "url": "/sample-site.html#refunds",
+         "keywords": ["refund", "missing", "wrong item", "incorrect", "cancel", "complaint",
+                      "late delivery"]},
+    ],
 }
 
 

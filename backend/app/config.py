@@ -54,6 +54,8 @@ class Config:
     max_message_chars: int = field(default_factory=lambda: int(os.getenv("MAX_MESSAGE_CHARS", "1000")))
     rate_limit_per_minute: int = field(default_factory=lambda: int(os.getenv("RATE_LIMIT_PER_MINUTE", "20")))
     admin_token: str = field(default_factory=lambda: os.getenv("ADMIN_TOKEN", ""))
+    # Fernet key(s) for the question log; empty = generate one in data_dir (see log_crypto.py)
+    log_encryption_key: str = field(default_factory=lambda: os.getenv("LOG_ENCRYPTION_KEY", ""))
     trust_proxy: bool = field(default_factory=lambda: _bool("TRUST_PROXY", False))
     allow_private_urls: bool = field(default_factory=lambda: _bool("ALLOW_PRIVATE_URLS", False))
     cors_origins: list[str] = field(

@@ -8,18 +8,22 @@ _ZW = re.compile(r"[\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff]")
 
 INJECTION_PATTERNS = [re.compile(p, re.I) for p in [
     r"\b(ignore|disregard|forget|override|bypass)\b.{0,40}\b(instructions?|rules|prompts?|guidelines|restrictions|guardrails)\b",
-    r"\b(system|developer|hidden|initial|original)\s+(prompt|message|instructions?)\b",
-    r"\b(reveal|show|print|repeat|output|display|leak|dump|tell me)\b.{0,30}\b(your|the)\s+(instructions?|rules|prompt|configuration|config|context)\b",
+    # No "message": "system message" and "original message" are normal customer phrases.
+    r"\b(system|developer|hidden|initial|original)\s+(prompt|instructions?)\b",
+    # The lookahead lets through "show me the rules for the loyalty program".
+    r"\b(reveal|show|print|repeat|output|display|leak|dump|tell me)\b.{0,30}\b(your|the)\s+(instructions?|rules|prompt|configuration|config|context)\b(?!\s+(for|on|about|of|regarding)\b)",
     r"\byou are now (a|an|my|the|in)\b",
     r"\b(pretend|act|behave|roleplay|role-play)\b.{0,20}\b(to be|as|like)\b.{0,20}\b(a|an|different|another|unrestricted|evil)\b",
     r"\b(jailbreak|developer mode|god mode|dan mode|do anything now)\b",
-    r"\bnew (instructions|rules|persona|role)\b",
+    # Only "new rules:" headers or "your/my new rules", not "any new rules for delivery?"
+    r"\bnew (instructions|rules|persona|role)\s*[:\-]|\b(your|my) new (instructions|rules|persona|role)\b",
     r"</?\s*(context|system|instructions?|assistant)\s*>",
     # A message that opens by impersonating a privileged role ("SYSTEM: ...").
     # Anchored, because a real customer never starts a question this way --
     # unanchored it would flag "a problem with your system: it crashed".
     r"^\[?\s*(system|developer|assistant|admin|root)\s*\]?\s*[:\-]",
-    r"\bwhat (are|were) your (instructions|rules)\b",
+    # Only when the question ends there; "What are your rules on refunds?" is a real question.
+    r"\bwhat (are|were) your (instructions|rules)\s*[?.!]*\s*$",
 ]]
 
 HANDOFF_PATTERNS = [re.compile(p, re.I) for p in [

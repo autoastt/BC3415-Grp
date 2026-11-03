@@ -48,7 +48,9 @@ export default function ChatTab({ settings, maxChars }: { settings: Settings | n
         if (e.type === "token") patch(botId, (m) => ({ ...m, content: m.content + e.text }));
         else if (e.type === "replace") patch(botId, (m) => ({ ...m, content: e.text }));
         else if (e.type === "done")
-          patch(botId, (m) => ({ ...m, status: "done", classification: e.classification, sources: e.sources, handoff: e.handoff }));
+          patch(botId, (m) => ({
+            ...m, status: "done", classification: e.classification, sources: e.sources, handoff: e.handoff, links: e.links ?? [],
+          }));
         else if (e.type === "error")
           patch(botId, (m) => ({ ...m, status: "error", content: e.message, classification: "error" }));
       }, ctrl.signal);

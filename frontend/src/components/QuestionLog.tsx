@@ -34,6 +34,13 @@ export default function QuestionLog({ refreshKey }: { refreshKey: number }) {
               {s.in_scope ?? 0} answered, {s.no_answer ?? 0} not in knowledge base, {s.out_of_scope ?? 0} declined, {s.handoff ?? 0} handed off
             </p>
           )}
+          {data?.encryption && (
+            <p className={`mt-0.5 text-xs ${data.encryption.key_source === "env" ? "text-muted" : "text-mustard-deep"}`}>
+              {data.encryption.key_source === "env"
+                ? "Questions are encrypted at rest. Visitor IPs are kept only as a one-way hash."
+                : "Questions are encrypted at rest, but with a key generated next to the data. Set LOG_ENCRYPTION_KEY for stronger protection."}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <label htmlFor="log-filter" className="sr-only">Filter</label>

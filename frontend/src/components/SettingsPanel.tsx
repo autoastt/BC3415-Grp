@@ -1,14 +1,36 @@
 import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
 import { api } from "../api";
-import type { Settings } from "../types";
+import type { QuickLinkSetting, Settings } from "../types";
+
+/** Helpful links are edited as text, one per line: "Label | URL | keyword, keyword" */
+const linksToText = (links: QuickLinkSetting[]) =>
+  links.map((l) => `${l.label} | ${l.url} | ${l.keywords.join(", ")}`).join("\n");
+
+function parseLinks(text: string): { links: QuickLinkSetting[] } | { error: string } {
+  const links: QuickLinkSetting[] = [];
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  for (const [i, line] of lines.entries()) {
+    const [label = "", url = "", words = "", ...extra] = line.split("|").map((p) => p.trim());
+    const keywords = words.split(",").map((k) => k.trim()).filter(Boolean);
+    if (!label || !url || !keywords.length || extra.length) {
+      return { error: `Helpful links, line ${i + 1}: use "Label | URL | keyword, keyword".` };
+    }
+    links.push({ label, url, keywords });
+  }
+  return { links };
+}
 
 export default function SettingsPanel({ settings, onSaved }: { settings: Settings | null; onSaved: (s: Settings) => void }) {
   const [form, setForm] = useState<Settings | null>(settings);
   const [topicDraft, setTopicDraft] = useState("");
+  const [linksText, setLinksText] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  useEffect(() => setForm(settings), [settings]);
+  useEffect(() => {
+    setForm(settings);
+    setLinksText(linksToText(settings?.quick_links ?? []));
+  }, [settings]);
   if (!form) return <section className="panel p-5 text-muted">Loading settings…</section>;
 
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => { setForm({ ...form, [k]: v }); setMsg(null); };
@@ -28,9 +50,14 @@ export default function SettingsPanel({ settings, onSaved }: { settings: Setting
   async function save(e: FormEvent) {
     e.preventDefault();
     if (!form) return;
+    const parsed = parseLinks(linksText);
+    if ("error" in parsed) {
+      setMsg({ ok: false, text: parsed.error });
+      return;
+    }
     setSaving(true);
     try {
-      const saved = await api.putSettings(form);
+      const saved = await api.putSettings({ ...form, quick_links: parsed.links });
       onSaved(saved);
       setMsg({ ok: true, text: "Settings saved. New chats use them right away." });
     } catch (err) {
@@ -81,6 +108,26 @@ export default function SettingsPanel({ settings, onSaved }: { settings: Setting
           <p className="mt-1 text-xs text-muted">You can use {"{company_name}"}, {"{bot_name}"} and {"{support_contact}"}.</p>
         </div>
         <details className="rounded-md border border-line px-3 py-2">
+          <summary className="cursor-pointer text-sm font-medium">Helpful links</summary>
+          <div className="mt-3 space-y-3">
+            <div>
+              <label className="label" htmlFor="s-order-url">Online ordering link</label>
+              <input id="s-order-url" className="field" value={form.order_url ?? ""} placeholder="https://order.company.com"
+                onChange={(e) => set("order_url", e.target.value)} />
+              <p className="mt-1 text-xs text-muted">Shown as "Order online" when a customer wants to buy something. Leave empty to turn it off.</p>
+            </div>
+            <div>
+              <label className="label" htmlFor="s-links">Self-service links</label>
+              <textarea id="s-links" className="field min-h-[150px] font-mono text-xs" value={linksText} spellCheck={false}
+                onChange={(e) => { setLinksText(e.target.value); setMsg(null); }} />
+              <p className="mt-1 text-xs text-muted">
+                One per line: Label | URL | keywords. A link appears under an answer when the question contains one of its
+                keywords (up to 3 links per answer). URLs must start with https://, http:// or /.
+              </p>
+            </div>
+          </div>
+        </details>
+        <details className="rounded-md border border-line px-3 py-2">
           <summary className="cursor-pointer text-sm font-medium">Answer strictness</summary>
           <div className="mt-3">
             <label className="label" htmlFor="s-threshold">
@@ -90,7 +137,7 @@ export default function SettingsPanel({ settings, onSaved }: { settings: Setting
               onChange={(e) => set("relevance_threshold", Number(e.target.value))} className="w-full accent-teal" />
             <p className="mt-1 text-xs text-muted">
               Higher means the bot says "I don't have that information" more often instead of answering from a weak match.
-              Default 0.35.
+              Default 0.30.
             </p>
           </div>
         </details>
