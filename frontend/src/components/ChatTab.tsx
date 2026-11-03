@@ -93,7 +93,7 @@ export default function ChatTab({ settings, maxChars }: { settings: Settings | n
     <div className="mx-auto flex h-full max-w-3xl flex-col px-4 sm:px-6">
       <div className="flex items-center justify-between gap-3 py-3">
         <label className="flex cursor-pointer items-center gap-2 text-sm text-muted">
-          <input type="checkbox" checked={showRouting} onChange={(e) => setShowRouting(e.target.checked)} className="accent-teal" />
+          <input type="checkbox" checked={showRouting} onChange={(e) => setShowRouting(e.target.checked)} className="accent-flame" />
           Show how each reply was routed
         </label>
         <button onClick={clearChat} disabled={messages.length === 0} className="btn-ghost px-3 py-1.5">
@@ -117,7 +117,7 @@ export default function ChatTab({ settings, maxChars }: { settings: Settings | n
                   <button
                     key={t}
                     onClick={() => send(`What can you tell me about your ${t}?`)}
-                    className="rounded-full border border-line bg-white px-3.5 py-1.5 text-sm hover:border-teal hover:text-teal-dark"
+                    className="rounded-full border border-line bg-white px-3.5 py-1.5 text-sm hover:border-flame hover:text-flame-dark"
                   >
                     {t.charAt(0).toUpperCase() + t.slice(1)}
                   </button>

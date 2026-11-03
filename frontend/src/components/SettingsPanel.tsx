@@ -83,9 +83,9 @@ export default function SettingsPanel({ settings, onSaved }: { settings: Setting
           <label className="label" htmlFor="s-topics">Allowed topics</label>
           <div className="field flex min-h-[44px] flex-wrap items-center gap-1.5 py-1.5">
             {form.allowed_topics.map((t) => (
-              <span key={t} className="inline-flex items-center gap-1 rounded-full bg-teal-soft py-0.5 pl-2.5 pr-1 text-sm text-teal-dark">
+              <span key={t} className="inline-flex items-center gap-1 rounded-full bg-flame-soft py-0.5 pl-2.5 pr-1 text-sm text-flame-dark">
                 {t}
-                <button type="button" aria-label={`Remove ${t}`} className="grid h-5 w-5 place-items-center rounded-full hover:bg-teal/15"
+                <button type="button" aria-label={`Remove ${t}`} className="grid h-5 w-5 place-items-center rounded-full hover:bg-flame/15"
                   onClick={() => set("allowed_topics", form.allowed_topics.filter((x) => x !== t))}>×</button>
               </span>
             ))}
@@ -134,7 +134,7 @@ export default function SettingsPanel({ settings, onSaved }: { settings: Setting
               Minimum match score: <span className="tabular-nums">{form.relevance_threshold.toFixed(2)}</span>
             </label>
             <input id="s-threshold" type="range" min={0} max={0.9} step={0.01} value={form.relevance_threshold}
-              onChange={(e) => set("relevance_threshold", Number(e.target.value))} className="w-full accent-teal" />
+              onChange={(e) => set("relevance_threshold", Number(e.target.value))} className="w-full accent-flame" />
             <p className="mt-1 text-xs text-muted">
               Higher means the bot says "I don't have that information" more often instead of answering from a weak match.
               Default 0.30.

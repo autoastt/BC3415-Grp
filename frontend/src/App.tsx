@@ -34,7 +34,7 @@ export default function App() {
       <header className="border-b border-line bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-8 gap-y-2 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-2.5">
-            <span aria-hidden className="grid h-8 w-8 place-items-center rounded-lg bg-teal">
+            <span aria-hidden className="grid h-8 w-8 place-items-center rounded-lg bg-flame">
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12.5l4.5 4.5L19 7.5" />
               </svg>
@@ -52,7 +52,7 @@ export default function App() {
                 aria-selected={tab === t.id}
                 onClick={() => setTab(t.id)}
                 className={`rounded-md px-3.5 py-1.5 text-sm font-semibold transition-colors ${
-                  tab === t.id ? "bg-teal-soft text-teal-dark" : "text-muted hover:text-ink"
+                  tab === t.id ? "bg-flame-soft text-flame-dark" : "text-muted hover:text-ink"
                 }`}
               >
                 {t.label}

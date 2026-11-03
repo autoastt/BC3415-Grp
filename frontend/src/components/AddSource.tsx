@@ -115,7 +115,7 @@ export default function AddSource({ maxMb, onAdded }: { maxMb: number; onAdded: 
             htmlFor="src-file"
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => { e.preventDefault(); pickFile(e.dataTransfer.files[0] ?? null); }}
-            className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-line bg-paper/60 px-4 py-8 text-center hover:border-teal"
+            className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-line bg-paper/60 px-4 py-8 text-center hover:border-flame"
           >
             <span className="font-semibold">{file ? file.name : "Drop a file here or click to choose"}</span>
             <span className="mt-1 text-sm text-muted">
@@ -141,11 +141,11 @@ export default function AddSource({ maxMb, onAdded }: { maxMb: number; onAdded: 
               <span>{progress.label}…</span>
               {progress.pct !== null && <span className="text-muted">{progress.pct}%</span>}
             </div>
-            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-teal-soft">
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-flame-soft">
               {progress.pct !== null ? (
-                <div className="h-full bg-teal transition-[width]" style={{ width: `${progress.pct}%` }} />
+                <div className="h-full bg-flame transition-[width]" style={{ width: `${progress.pct}%` }} />
               ) : (
-                <div className="bar-indeterminate h-full w-2/5 bg-teal" />
+                <div className="bar-indeterminate h-full w-2/5 bg-flame" />
               )}
             </div>
           </div>

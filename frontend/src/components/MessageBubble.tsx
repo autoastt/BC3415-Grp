@@ -36,7 +36,7 @@ export default function MessageBubble({ message, showRouting }: Props) {
   if (isUser) {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-teal px-4 py-2.5 text-white sm:max-w-[75%]">
+        <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-flame px-4 py-2.5 text-white sm:max-w-[75%]">
           {message.content}
         </div>
       </div>
@@ -57,7 +57,7 @@ export default function MessageBubble({ message, showRouting }: Props) {
           aria-live={streaming ? "polite" : undefined}
         >
           {message.content ? formatText(message.content) : streaming ? <span className="text-muted">Checking…</span> : null}
-          {streaming && message.content && <span aria-hidden className="caret ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 bg-teal" />}
+          {streaming && message.content && <span aria-hidden className="caret ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 bg-flame" />}
           {links.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
               {links.map((l) => (
@@ -66,7 +66,7 @@ export default function MessageBubble({ message, showRouting }: Props) {
                   href={l.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-teal/30 bg-teal-soft px-3 py-1 text-sm font-semibold text-teal-dark transition-colors hover:border-teal hover:bg-teal hover:text-white"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-flame/30 bg-flame-soft px-3 py-1 text-sm font-semibold text-flame-dark transition-colors hover:border-flame hover:bg-flame hover:text-white"
                 >
                   {l.label}
                   <svg aria-hidden viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
