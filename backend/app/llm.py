@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Any, Iterator
+from itertools import chain
+from typing import Any, Iterable, Iterator
 
 from .config import config
 
@@ -71,8 +72,41 @@ def normalize_history(history: list[dict[str, Any]]) -> list[dict[str, str]]:
     return out
 
 
+# Sent as a second system message so the spec prompt in prompts.py stays verbatim.
+# The markers let the server tell a fallback or refusal apart in any language, where
+# matching the English sentence alone would log a translated "don't know" as answered.
+MARKER_NOTE = """Start your reply with [NO_ANSWER] when you give the reply from rule 2 (the information is not available), and with [REFUSED] when you give the reply from rule 3 (the request is off-topic). Do this in every language. Otherwise start directly with the answer. The marker is removed before the customer sees the reply."""
+
+MARKERS = ("[NO_ANSWER]", "[REFUSED]")
+
+
+def strip_marker(pieces: Iterable[str], found: list[str]) -> Iterator[str]:
+    """Yield a streamed reply without its leading marker, appending the marker's name
+    ("NO_ANSWER" or "REFUSED") to `found`. Only the first few characters are held back."""
+    it = iter(pieces)
+    head = ""
+    for piece in it:
+        head += piece
+        lead = head.lstrip()
+        tag = next((m for m in MARKERS if lead.startswith(m)), None)
+        if tag:
+            found.append(tag[1:-1])
+            head = lead[len(tag):]
+            break
+        if not any(m.startswith(lead) for m in MARKERS):  # can't be a marker any more
+            break
+    started = False
+    for piece in chain([head], it):  # chain, not (head, *it): unpacking would end streaming
+        if not started:
+            piece = piece.lstrip()
+            started = bool(piece)
+        if piece:
+            yield piece
+
+
 def stream_answer(system_prompt: str, history: list[dict[str, str]], question: str) -> Iterator[str]:
-    messages = [{"role": "system", "content": system_prompt}, *history,
+    messages = [{"role": "system", "content": system_prompt},
+                {"role": "system", "content": MARKER_NOTE}, *history,
                 {"role": "user", "content": question}]
     stream = client().chat.completions.create(
         model=config.answer_model, max_completion_tokens=config.max_answer_tokens,

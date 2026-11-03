@@ -3,7 +3,7 @@ import pytest
 
 from app import guard
 from app.ingestion import IngestionError, chunk_text, clean_text, extract_csv, extract_file, tokenizer
-from app.llm import normalize_history
+from app.llm import normalize_history, strip_marker
 from app.prompts import build_system_prompt
 from app.rate_limit import RateLimiter
 from app.scraper import check_url, html_to_text
@@ -132,3 +132,36 @@ def test_rate_limiter():
     assert [rl.check("ip", now=t)[0] for t in (0, 1, 2, 3)] == [True, True, True, False]
     assert rl.check("ip", now=61)[0] is True
     assert rl.check("other", now=3)[0] is True
+
+
+# ---------- reply markers ----------
+
+def _strip(pieces):
+    found: list[str] = []
+    return "".join(strip_marker(pieces, found)), found
+
+
+@pytest.mark.parametrize("pieces,text,found", [
+    (["[NO_ANSWER] Je n'ai pas ", "cette information."], "Je n'ai pas cette information.", ["NO_ANSWER"]),
+    (["[NO_", "ANS", "WER]", " ", "Lo siento."], "Lo siento.", ["NO_ANSWER"]),
+    (["  [REFUSED]", "\nSorry."], "Sorry.", ["REFUSED"]),
+    (["The Classic ", "Blaze is $9.90."], "The Classic Blaze is $9.90.", []),
+    (["[1] Classic Blaze"], "[1] Classic Blaze", []),       # looks like a marker at first, isn't one
+    (["[NO"], "[NO", []),                                     # stream ended mid-way
+    (["[REFUSED]"], "", ["REFUSED"]),
+    ([], "", []),
+])
+def test_strip_marker(pieces, text, found):
+    assert _strip(pieces) == (text, found)
+
+
+def test_strip_marker_streams_after_the_first_characters():
+    seen = []
+
+    def pieces():
+        for p in ["The ", "Classic ", "Blaze"]:
+            seen.append(p)
+            yield p
+
+    out = strip_marker(pieces(), [])
+    assert next(out) == "The " and seen == ["The "]  # not buffered until the end

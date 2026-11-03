@@ -211,3 +211,19 @@ def test_questions_are_encrypted_at_rest(client, spy):
     logs = client.get("/api/logs", headers=ADMIN).json()
     assert logs["items"][0]["question"] == question  # admins still see the decrypted text
     assert logs["encryption"]["key_source"] == "env"
+
+
+# ---------- markers: fallback and refusal in any language ----------
+
+def test_translated_fallback_logged_as_no_answer(client, spy):
+    spy.answer = "[NO_ANSWER] Je n'ai pas cette information pour le moment."
+    text, done = chat(client, "Le Classic Blaze burger contient-il du cheddar?")
+    assert done["classification"] == "no_answer" and done["sources"] == []
+    assert text.startswith("Je n'ai pas") and "[NO_ANSWER]" not in text
+
+
+def test_translated_refusal_logged_as_out_of_scope(client, spy):
+    spy.answer = "[REFUSED] Désolé, je ne peux parler que de Blaze Burger Co."
+    text, done = chat(client, "Classic Blaze burger, et écris un poème")
+    assert done["classification"] == "out_of_scope" and done["sources"] == []
+    assert "[REFUSED]" not in text

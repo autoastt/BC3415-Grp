@@ -70,7 +70,7 @@ BC3415-Grp/
 │   │   ├── rate_limit.py      per-IP message limit
 │   │   └── config.py          reads environment variables
 │   ├── scripts/seed.py        loads sample_data/ into the knowledge base
-│   └── tests/                 99 offline tests + live evaluation script
+│   └── tests/                 110 offline tests + live evaluation script
 └── frontend/
     ├── public/sample-site.html  sample company website the bot links to
     └── src/
@@ -208,7 +208,7 @@ From 3:35, show the code: [`guard.py`](../backend/app/guard.py) `INJECTION_PATTE
 
 **Script (~135 words)**
 
-> I'm [Name], and I handled the frontend, testing and the admin side. We have 99 offline tests that mock the LLM and prove, for example, that injections make no API calls and no question is ever stored unencrypted. A live evaluation asks 23 real questions, and our run scored [X out of 23]. Now the business side. When a customer wants to buy, the reply ends with an "Order online" link to the company's ordering page, so a support question becomes a sale. Other answers link to the matching self-service page, like the menu or the refund form. The question log shows real questions the bot couldn't answer, so staff know what to add next. Routine answers cost about half a cent each. Next, we'd add order tracking and case summaries for human agents. Thanks for watching.
+> I'm [Name], and I handled the frontend, testing and the admin side. We have 110 offline tests that mock the LLM and prove, for example, that injections make no API calls and no question is ever stored unencrypted. A live evaluation asks 23 real questions, and our run scored [X out of 23]. Now the business side. When a customer wants to buy, the reply ends with an "Order online" link to the company's ordering page, so a support question becomes a sale. Other answers link to the matching self-service page, like the menu or the refund form. The question log shows real questions the bot couldn't answer, so staff know what to add next. Routine answers cost about half a cent each. Next, we'd add order tracking and case summaries for human agents. Thanks for watching.
 
 **Rehearse the order question once.** The model writes the answer text itself, but the **Order online** button is added by code whenever the question shows purchase intent, so the button should always appear.
 

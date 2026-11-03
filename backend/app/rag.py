@@ -118,8 +118,9 @@ def handle_chat(message: str, history: list[dict[str, Any]], client_id: str | No
     # 5. Generation
     system_prompt = build_system(s, relevant, refusal)
     answer = ""
+    marker: list[str] = []
     try:
-        for piece in llm.stream_answer(system_prompt, hist, msg):
+        for piece in llm.strip_marker(llm.stream_answer(system_prompt, hist, msg), marker):
             answer += piece
             if guard.leaks_prompt(answer):
                 record("out_of_scope", "output_leak_blocked", top)
@@ -134,12 +135,13 @@ def handle_chat(message: str, history: list[dict[str, Any]], client_id: str | No
         yield {"type": "error", "message": "Something went wrong while answering. Please try again."}
         return
 
+    # The marker covers replies in any language; the English checks catch a model that forgets it
     lowered = answer.lower()
-    if FALLBACK_SIGNATURE in lowered:  # model judged the retrieved text insufficient
+    if "NO_ANSWER" in marker or FALLBACK_SIGNATURE in lowered:  # retrieved text was insufficient
         record("no_answer", "model_fallback", top)
         yield {"type": "done", "classification": "no_answer", "sources": [], "handoff": True,
                "links": helpful}
-    elif refusal.lower()[:60] in lowered:
+    elif "REFUSED" in marker or refusal.lower()[:60] in lowered:
         record("out_of_scope", "model_refusal", top)
         yield {"type": "done", "classification": "out_of_scope", "sources": [], "handoff": False,
                "links": []}
